@@ -31,10 +31,10 @@ const HomeScreen = (props) => {
     setShow(false)
     setWater('')
   }
-  
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Welcome, user.</Text>
+      <Text style={styles.title}>Welcome,.</Text>
       <View style={styles.chartContainer}>
         <View style={styles.chart}>
           <PieChart
@@ -137,8 +137,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 10,
     borderRadius: 5,
-    width: 100,
-    
+    width: 100,    
   },
   waterButton: {
     backgroundColor: 'grey',
@@ -147,13 +146,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row', 
     paddingVertical: 10,
     paddingHorizontal: 10,
-    borderRadius: 5,
-    width: 100,
   },
   buttonText: {
     color: '#fff',
     fontSize: 16,
-  },
   water: {
     marginTop: 20,
   },
