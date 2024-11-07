@@ -1,16 +1,37 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, Pressable } from 'react-native';
+import { StyleSheet, Text, TextInput, View, Pressable, Modal } from 'react-native';
 import PieChart from 'react-native-pie-chart';
 import { BarChart } from 'react-native-gifted-charts';
 
-const HomeScreen = () => {
+const HomeScreen = (props) => {
   const [calories, setCalories] = useState('')
   const [mealType, setMealtype] = useState('')
   const [water, setWater] = useState('')
-  const widthAndHeight = 250
+  const [totalWater, setTotalWater] = useState(0)
+  const [show, setShow] = useState(false)
+  const widthAndHeight = 200
   const series = [123, 321, 123, 789, 537]
   const sliceColor = ['#fbd203', '#ffb300', '#ff9100', '#ff6c00', '#ff3c00']
-  
+  const barData = [
+    {
+      value: totalWater,
+      frontColor: '#0E87CC'
+    }
+  ]
+
+  const clickWaterButton = () => {
+    setShow(true)
+  }
+
+  const saveWater = () => {
+    const waterIntake = parseInt(water, 10)
+    if(!isNaN(waterIntake)) {
+      setTotalWater(totalWater + waterIntake)
+    }
+    setShow(false)
+    setWater('')
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Welcome,.</Text>
@@ -27,12 +48,43 @@ const HomeScreen = () => {
           </Text>
         </View>
         <View style={styles.chart}>
-          <BarChart water={water} style={styles.water} />
+          <BarChart data={barData} style={styles.water} />
+          <Pressable style={styles.waterButton} onPress={clickWaterButton}>
+            <Text style={styles.buttonText}>Add water</Text>
+          </Pressable>
+          <Modal
+            transparent={false}
+            visible={show}
+            onRequestClose={() => {
+              setShow(!show);
+            }}>
+            <View style={styles.centeredView}>
+              <View style={styles.modalView}>
+                <Text style={styles.modalText}>Enter amount</Text>
+                <TextInput 
+                  placeholder='ml'
+                  value={water}
+                  onChangeText={setWater}
+                />
+                <Pressable onPress={saveWater}>
+                  <Text>Save</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.button, styles.buttonClose]}
+                  onPress={() => {
+                    setShow(!show);
+                  }}>
+                  <Text></Text>
+                  <Text style={styles.textStyle}>Close</Text>
+                </Pressable>
+              </View>
+            </View>
+          </Modal>
         </View>
       </View>
       <View style={styles.meals}>
         <Text style={styles.mealsTitle}>Your meals</Text>
-        <Pressable style={styles.mealButton} onPress={() => {/* handle button press */ }}>
+        <Pressable style={styles.mealButton} onPress={() => {/* opens add foods or drinks page */ }}>
           <Text style={styles.buttonText}>Add meal</Text>
         </Pressable>
       </View>
@@ -54,7 +106,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 10,
   },
   chart: {
     alignItems: 'center',
@@ -68,8 +120,10 @@ const styles = StyleSheet.create({
     top: '40%',
   },
   meals: {
+    flexDirection: 'row',
     marginTop: 20,
     padding: 10,
+    justifyContent:'space-between',
   },
   mealsTitle: {
     fontSize: 20,
@@ -81,17 +135,47 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexDirection: 'row', 
     paddingVertical: 10,
-    paddingHorizontal: 20,
+    paddingHorizontal: 10,
     borderRadius: 5,
-    width: 100,
+    width: 100,    
+  },
+  waterButton: {
+    backgroundColor: 'grey',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row', 
+    paddingVertical: 10,
+    paddingHorizontal: 10,
   },
   buttonText: {
     color: '#fff',
     fontSize: 16,
-  },
   water: {
     marginTop: 20,
   },
+  centeredView: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent:'center',
+  },
+  modalView: {
+    margin: 20,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 35,
+    width: 400,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+  
+  shadowOpacity: 0.25,
+  shadowRadius: 4,
+  elevation: 5,
+},
 });
 
 export default HomeScreen;
+ 
