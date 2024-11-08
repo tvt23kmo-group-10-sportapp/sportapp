@@ -84,7 +84,7 @@ const HomeScreen = (props) => {
       </View>
       <View style={styles.meals}>
         <Text style={styles.mealsTitle}>Your meals</Text>
-        <Pressable style={styles.mealButton} onPress={() => {/* opens add foods or drinks page */ }}>
+        <Pressable style={styles.mealButton} onPress={() => props.navigation.navigate('Add Meal')}>
           <Text style={styles.buttonText}>Add meal</Text>
         </Pressable>
       </View>
@@ -150,6 +150,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     fontSize: 16,
+  },
   water: {
     marginTop: 20,
   },
@@ -174,7 +175,7 @@ const styles = StyleSheet.create({
   shadowOpacity: 0.25,
   shadowRadius: 4,
   elevation: 5,
-},
+}
 });
 
 export default HomeScreen;

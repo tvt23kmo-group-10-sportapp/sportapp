@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from './screens/HomeScreen';
 import RegisterLoginScreen from './screens/RegisterLoginScreen';
+import SearchScreen from './screens/SearchScreen';
 import Header from './components/Header'; 
 
 const Stack = createStackNavigator();
@@ -19,6 +20,9 @@ export default function App() {
           name="RegisterLogin" 
           component={RegisterLoginScreen} 
         />
+        <Stack.Screen 
+          name="Add Meal" 
+          component={SearchScreen} />
       </Stack.Navigator>
       <StatusBar style="auto" />
     </NavigationContainer>
