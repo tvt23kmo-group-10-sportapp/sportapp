@@ -1,27 +1,45 @@
 import React from 'react';
-import { TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, Image, StyleSheet } from 'react-native';
 
 const Header = ({ navigation }) => {
   return (
-    <TouchableOpacity 
-      onPress={() => navigation.navigate('RegisterLogin')} 
-      style={styles.userLogo}
-    >
-    <Image 
-        source={require('../assets/user-icon.png')} 
-        style={styles.logoImage} 
-    />
-    </TouchableOpacity>
+    <View style={styles.container}>
+      <TouchableOpacity 
+        onPress={() => navigation.navigate('RegisterLogin')} 
+        style={styles.iconContainer}
+      >
+        <Image 
+          source={require('../assets/user-icon.png')} 
+          style={styles.icon} 
+        />
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        onPress={() => navigation.navigate('Settings')} 
+        style={styles.iconContainer}
+      >
+        <Image 
+          source={require('../assets/settings-icon.png')}
+          style={styles.icon} 
+        />
+      </TouchableOpacity>
+    </View>
+
   );
 };
 
 const styles = StyleSheet.create({
-  userLogo: {
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginRight: 20,
+  },
+  iconContainer: {
+    marginLeft: 15,
     width: 40,
     height: 40,
   },
-  logoImage: {
+  icon: {
     width: '100%',
     height: '100%',
     resizeMode: 'contain',
