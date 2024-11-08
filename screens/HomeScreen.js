@@ -130,7 +130,7 @@ const HomeScreen = () => {
       </View>
       <View style={styles.meals}>
         <Text style={styles.mealsTitle}>Your meals</Text>
-        <Pressable style={styles.mealButton} onPress={() => {}}>
+        <Pressable style={styles.mealButton} onPress={() => props.navigation.navigate('Add Meal')}>
           <Text style={styles.buttonText}>Add meal</Text>
         </Pressable>
       </View>
