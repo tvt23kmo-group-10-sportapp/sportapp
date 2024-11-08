@@ -1,29 +1,13 @@
 import React from 'react';
-import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
-import HomeScreen from './screens/HomeScreen';
-import RegisterLoginScreen from './screens/RegisterLoginScreen';
-import SearchScreen from './screens/SearchScreen';
-import Header from './components/Header'; 
 
-const Stack = createStackNavigator();
+import MainNavigator from './MainNavigator';
+import { StatusBar } from 'expo-status-bar';
 
 export default function App() {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="Home">
-        <Stack.Screen 
-          name="Home" component={HomeScreen} options={({ navigation }) => ({headerRight: () => <Header navigation={navigation} />, })}
-        />
-        <Stack.Screen 
-          name="RegisterLogin" 
-          component={RegisterLoginScreen} 
-        />
-        <Stack.Screen 
-          name="Add Meal" 
-          component={SearchScreen} />
-      </Stack.Navigator>
+      <MainNavigator />
       <StatusBar style="auto" />
     </NavigationContainer>
   );
