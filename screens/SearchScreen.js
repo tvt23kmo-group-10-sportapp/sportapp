@@ -5,10 +5,12 @@ import { Picker } from '@react-native-picker/picker';
 import { ToastAndroid } from 'react-native'; 
 
 const SearchScreen = () => {
-  const [selectedMeal, setSelectedMeal] = useState(''); 
-  const [query, setQuery] = useState(''); 
-  const [results, setResults] = useState([]); 
-  const [selectedItem, setSelectedItem] = useState(null); 
+  const [selectedMeal, setSelectedMeal] = useState('');
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [amount, setAmount] = useState('');
+  const [unit, setUnit] = useState('g');
 
   //Simuloidaan API-vastausta
   const mockData = [
@@ -23,9 +25,9 @@ const SearchScreen = () => {
 
     /*Esimerkkikoodi, kun API on käytössä:
     try {
-      const response = await fetch(`https://platform.fatsecret.com/rest/server.api?method=foods.search&search_expression=${text}&format=json`, {
+      const response = await fetch(https://platform.fatsecret.com/rest/server.api?method=foods.search&search_expression=${text}&format=json, {
         headers: {
-          Authorization: `Bearer YOUR_ACCESS_TOKEN`,
+          Authorization: Bearer YOUR_ACCESS_TOKEN,
         },
       });
       const data = await response.json();
@@ -55,21 +57,20 @@ const SearchScreen = () => {
   //Funktio aterian lisäämiseksi (kutsutaan Add meal -painikkeesta)
   const addMeal = () => {
     if (selectedItem) {
-      ToastAndroid.show(`${selectedItem.name} added to your meal!`, ToastAndroid.SHORT);
+      ToastAndroid.show(
+        `${selectedItem.name} (${amount} ${unit}) added to your meal!`, 
+        ToastAndroid.SHORT
+      );    
       setQuery('');
       setSelectedItem(null);
+      setAmount(''); // Reset amount
     }
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Icon 
-          name="search" 
-          size={30} 
-          color="#000" 
-          style={styles.icon} 
-        />
+        <Icon name="search" size={30} color="#000" style={styles.icon} />
         <Text style={styles.title}>Search foods or drinks</Text>
       </View>
 
@@ -109,6 +110,26 @@ const SearchScreen = () => {
         />
       )}
 
+      {/* Amount input and unit selection */}
+      <View style={styles.amountContainer}>
+        <Text style={styles.amountLabel}>Amount:</Text>
+        <TextInput
+          style={styles.amountInput}
+          placeholder={"Enter amount"}
+          value={amount}
+          onChangeText={setAmount}
+          keyboardType="numeric"
+        />
+        <Picker
+          selectedValue={unit}
+          style={styles.unitPicker}
+          onValueChange={(itemValue) => setUnit(itemValue)}
+        >
+          <Picker.Item label="g" value="g" />
+          <Picker.Item label="ml" value="ml" />
+        </Picker>
+      </View>
+
       <View style={styles.addButtonContainer}>
         <TouchableOpacity style={styles.addButton} onPress={addMeal}>
           <Icon name="plus" size={20} color="#fff" />
@@ -127,8 +148,9 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   header: {
-    flexDirection: 'row', 
+    flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 30,
     marginBottom: 20,
   },
   icon: {
@@ -149,7 +171,7 @@ const styles = StyleSheet.create({
   },
   picker: {
     height: 50,
-    width: 200,                    
+    width: 200,
   },
   searchContainer: {
     width: '90%',
@@ -173,6 +195,28 @@ const styles = StyleSheet.create({
   resultItem: {
     padding: 5,
     fontSize: 16,
+  },
+  amountContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    width: '90%',
+  },
+  amountLabel: {
+    fontSize: 16,
+    marginRight: 10,
+  },
+  amountInput: {
+    flex: 1,
+    height: 50,
+    borderColor: '#ddd',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+  },
+  unitPicker: {
+    height: 50,  // Varmista, että korkeus on riittävä
+    width: 100,  // Aseta myös leveys, jos tarpeen
   },
   addButtonContainer: {
     width: '90%',
