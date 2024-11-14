@@ -1,22 +1,23 @@
 import React, { useState } from 'react'; 
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity } from 'react-native'; 
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ToastAndroid, ScrollView } from 'react-native'; 
 import Icon from 'react-native-vector-icons/FontAwesome'; 
 import { Picker } from '@react-native-picker/picker'; 
-import { ToastAndroid } from 'react-native'; 
 
 const SearchScreen = () => {
-  const [selectedMeal, setSelectedMeal] = useState('');
+  const [selectedMeal, setSelectedMeal] = useState('Breakfast');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [amount, setAmount] = useState('');
   const [unit, setUnit] = useState('g');
+  const [dailyMeals, setDailyMeals] = useState([]);
 
   //Simuloidaan API-vastausta
   const mockData = [
     { id: '1', name: 'Apple' },
     { id: '2', name: 'Banana' },
     { id: '3', name: 'Orange' },
+    { id: '4', name: 'Mehukatti'}
   ];
 
   //Funktio haun suorittamiseksi
@@ -56,15 +57,40 @@ const SearchScreen = () => {
 
   //Funktio aterian lisäämiseksi (kutsutaan Add meal -painikkeesta)
   const addMeal = () => {
-    if (selectedItem) {
+    if (selectedItem && amount) {
+      const meal = {
+        mealType: selectedMeal,
+        name: selectedItem.name,
+        amount,
+        unit,
+      };      
+      setDailyMeals([...dailyMeals, meal]); // Lisätään uusi ruoka dailyMeals-listaan
       ToastAndroid.show(
         `${selectedItem.name} (${amount} ${unit}) added to your meal!`, 
         ToastAndroid.SHORT
-      );    
+      );
       setQuery('');
       setSelectedItem(null);
-      setAmount(''); // Reset amount
+      setAmount('');
     }
+  };
+
+   // Funktio ruokien ryhmittelyyn aterian mukaan
+   const groupMealsByType = () => {
+    const grouped = {};
+    dailyMeals.forEach((meal) => {
+      if (!grouped[meal.mealType]) {
+        grouped[meal.mealType] = [];
+      }
+      grouped[meal.mealType].push(meal);
+    });
+    return grouped;
+  };
+
+    // Funktio aterian poistamiseksi
+  const removeMeal = (mealToRemove) => {
+    setDailyMeals(dailyMeals.filter((meal) => meal !== mealToRemove));
+    ToastAndroid.show(`${mealToRemove.name} removed from your meal!`, ToastAndroid.SHORT);
   };
 
   return (
@@ -75,7 +101,7 @@ const SearchScreen = () => {
       </View>
 
       <View style={styles.mealPickerContainer}>
-        <Text style={styles.mealLabel}>Meal</Text>
+        <Text style={styles.mealLabel}>Meal:</Text>
         <Picker
           selectedValue={selectedMeal}
           style={styles.picker}
@@ -98,19 +124,20 @@ const SearchScreen = () => {
       </View>
 
       {query.length > 0 && results.length > 0 && (
-        <FlatList
-          data={results}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <TouchableOpacity onPress={() => selectItem(item)}>
-              <Text style={styles.resultItem}>{item.name}</Text>
-            </TouchableOpacity>
-          )}
-          style={styles.resultList}
-        />
+        <View style={styles.resultListContainer}>
+          <FlatList
+            data={results}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <TouchableOpacity onPress={() => selectItem(item)}>
+                <Text style={styles.resultItem}>{item.name}</Text>
+              </TouchableOpacity>
+            )}
+            style={styles.resultList}
+          />
+        </View>
       )}
 
-      {/* Amount input and unit selection */}
       <View style={styles.amountContainer}>
         <Text style={styles.amountLabel}>Amount:</Text>
         <TextInput
@@ -136,6 +163,34 @@ const SearchScreen = () => {
           <Text style={styles.addButtonText}>Add meal</Text>
         </TouchableOpacity>
       </View>
+
+      <View style={styles.dailyMealsContainer}>
+        <Text style={styles.dailyMealsTitle}>Meals of the day</Text>
+        <ScrollView style={styles.scrollView}>
+          {Object.entries(groupMealsByType()).map(([mealType, meals]) => (
+            <View key={mealType} style={styles.mealSection}>
+              <Text style={styles.mealType}>{mealType}</Text>
+              {meals.map((meal, index) => (
+                <View key={index} style={styles.mealItemContainer}>
+                  <Text style={styles.mealItem}>
+                    • {meal.name} ({meal.amount} {meal.unit})
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.removeButton}
+                    onPress={() => removeMeal(meal)}
+                  >
+                    <Icon name="trash" size={20} color="black" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          ))}
+    {dailyMeals.length === 0 && (
+      <Text style={styles.noMealsText}>No meals added yet.</Text>
+    )}
+        </ScrollView>
+      </View>
+
     </View>
   );
 };
@@ -184,6 +239,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 16,
   },
+  resultListContainer: {
+    width: '90%',
+    maxHeight: 150,
+    marginBottom: 10,
+  },
   resultList: {
     width: '80%',
     maxHeight: 100,
@@ -215,8 +275,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   unitPicker: {
-    height: 50,  // Varmista, että korkeus on riittävä
-    width: 100,  // Aseta myös leveys, jos tarpeen
+    height: 50,
+    width: 100,
   },
   addButtonContainer: {
     width: '90%',
@@ -236,6 +296,45 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     marginLeft: 5,
+  },
+  dailyMealsContainer: {
+    width: '90%',
+    marginTop: 20,
+  },
+  dailyMealsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  mealSection: {
+    marginBottom: 10,
+  },
+  mealType: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 10,
+  },
+  mealItem: {
+    fontSize: 16,
+    paddingVertical: 2,
+  },
+  mealItemContainer: {
+    flexDirection: 'row',  
+    alignItems: 'center',  
+    marginBottom: 10,
+  },
+  noMealsText: {
+    fontSize: 16,
+    color: '#888',
+  },
+  removeButton: {
+    marginLeft: 10,
+    padding: 5,
+    borderRadius: 5,
+  },
+  scrollView: {
+    width: '100%',
+    maxHeight: 270,
   },
 });
 
