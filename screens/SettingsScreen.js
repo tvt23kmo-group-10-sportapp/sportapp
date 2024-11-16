@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, Button, Modal, TouchableOpacity, StyleSheet } from 'react-native';
 import { FIRESTORE_DB, FIREBASE_AUTH } from '../database/databaseConfig';
-import { collection, doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
 const SettingsPage = () => {
@@ -14,8 +14,8 @@ const SettingsPage = () => {
   const [dailyWater, setDailyWater] = useState('');
   const [isModalVisible, setModalVisible] = useState(false);
 
-  const [userId, setUserId] = useState(null); // State to hold dynamic user ID
-
+  const [userId, setUserId] = useState(null);
+  
   // Fetch authenticated user's ID
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(FIREBASE_AUTH, (user) => {
@@ -25,7 +25,7 @@ const SettingsPage = () => {
         setUserId(null);
       }
     });
-    return unsubscribe; // Cleanup subscription on component unmount
+    return unsubscribe;
   }, []);
 
   // Fetch user data from Firestore
@@ -51,7 +51,7 @@ const SettingsPage = () => {
     };
 
     fetchUserData();
-  }, [userId]); // Depend on userId to trigger when it changes
+  }, [userId]);
 
   // Calculate calorie and water goals
   const calculateCalorieGoal = () => {
@@ -90,7 +90,7 @@ const SettingsPage = () => {
     setDailyWater((weightNum * 35).toFixed(0)); // in ml
   };
 
-  // Save or update user data in Firestore
+  // Save or update user data in database
   const saveToFirebase = async () => {
     if (!userId) {
       alert('No user logged in!');
