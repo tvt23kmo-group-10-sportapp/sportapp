@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, Button, Modal, TouchableOpacity, StyleSheet } from 'react-native';
+import { FIRESTORE_DB, FIREBASE_AUTH } from '../database/databaseConfig';
+import { collection, doc, getDoc, setDoc } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const SettingsPage = () => {
   const [height, setHeight] = useState('');
@@ -9,27 +12,65 @@ const SettingsPage = () => {
   const [gender, setGender] = useState('male');
   const [dailyCalories, setDailyCalories] = useState('');
   const [dailyWater, setDailyWater] = useState('');
-  const [isModalVisible, setModalVisible] = useState(false); // for Modal visibility
+  const [isModalVisible, setModalVisible] = useState(false);
 
+  const [userId, setUserId] = useState(null); // State to hold dynamic user ID
+
+  // Fetch authenticated user's ID
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(FIREBASE_AUTH, (user) => {
+      if (user) {
+        setUserId(user.uid);
+      } else {
+        setUserId(null);
+      }
+    });
+    return unsubscribe; // Cleanup subscription on component unmount
+  }, []);
+
+  // Fetch user data from Firestore
+  useEffect(() => {
+    if (!userId) return; // Wait for userId to be set
+
+    const fetchUserData = async () => {
+      try {
+        const userDoc = await getDoc(doc(FIRESTORE_DB, 'user_settings', userId));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          setHeight(data.height || '');
+          setWeight(data.weight || '');
+          setAge(data.age || '');
+          setActivity(data.activity || 'low');
+          setGender(data.gender || 'male');
+          setDailyCalories(data.dailyCalories || '');
+          setDailyWater(data.dailyWater || '');
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      }
+    };
+
+    fetchUserData();
+  }, [userId]); // Depend on userId to trigger when it changes
+
+  // Calculate calorie and water goals
   const calculateCalorieGoal = () => {
     const weightNum = parseFloat(weight);
     const heightNum = parseFloat(height);
     const ageNum = parseInt(age);
 
     if (isNaN(weightNum) || isNaN(heightNum) || isNaN(ageNum)) {
-      alert("Please enter valid numbers for height, weight, and age.");
+      alert('Please enter valid numbers for height, weight, and age.');
       return;
     }
 
-    // Calculate BMR based on gender
     let bmr;
     if (gender === 'male') {
-      bmr = 88.362 + (13.397 * weightNum) + (4.799 * heightNum) - (5.677 * ageNum);
+      bmr = 88.362 + 13.397 * weightNum + 4.799 * heightNum - 5.677 * ageNum;
     } else {
-      bmr = 447.593 + (9.247 * weightNum) + (3.098 * heightNum) - (4.330 * ageNum);
+      bmr = 447.593 + 9.247 * weightNum + 3.098 * heightNum - 4.33 * ageNum;
     }
 
-    // Adjust BMR based on activity level
     let calorieGoal;
     switch (activity) {
       case 'low':
@@ -45,18 +86,34 @@ const SettingsPage = () => {
         calorieGoal = bmr;
     }
 
-    // Setting daily calorie goal
     setDailyCalories(calorieGoal.toFixed(0));
-
-    // Setting daily water goal
     setDailyWater((weightNum * 35).toFixed(0)); // in ml
   };
 
-  const activityOptions = [
-    { label: 'Low', value: 'low' },
-    { label: 'Moderate', value: 'moderate' },
-    { label: 'High', value: 'high' }
-  ];
+  // Save or update user data in Firestore
+  const saveToFirebase = async () => {
+    if (!userId) {
+      alert('No user logged in!');
+      return;
+    }
+
+    try {
+      await setDoc(doc(FIRESTORE_DB, 'user_settings', userId), {
+        height,
+        weight,
+        age,
+        activity,
+        gender,
+        dailyCalories,
+        dailyWater,
+        timestamp: new Date(),
+      });
+      alert('Data saved successfully!');
+    } catch (error) {
+      console.error('Error saving data:', error);
+      alert('Failed to save data.');
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -92,7 +149,7 @@ const SettingsPage = () => {
 
       <Text style={styles.label}>Activity Level:</Text>
       <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.dropdownButton}>
-        <Text style={styles.dropdownText}>{activityOptions.find(option => option.value === activity).label}</Text>
+        <Text style={styles.dropdownText}>{activity}</Text>
       </TouchableOpacity>
 
       <Modal
@@ -103,32 +160,39 @@ const SettingsPage = () => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            {activityOptions.map((option) => (
+            {['low', 'moderate', 'high'].map((level) => (
               <TouchableOpacity
-                key={option.value}
-                style={styles.modalItem}
+                key={level}
                 onPress={() => {
-                  setActivity(option.value);
+                  setActivity(level);
                   setModalVisible(false);
                 }}
               >
-                <Text style={styles.modalItemText}>{option.label}</Text>
+                <Text>{level}</Text>
               </TouchableOpacity>
             ))}
-            <Button title="Close" onPress={() => setModalVisible(false)} />
           </View>
         </View>
       </Modal>
 
+      <Text style={styles.label}>Gender:</Text>
       <View style={styles.genderContainer}>
-        <Text style={styles.label}>Gender:</Text>
-        <View style={styles.radioContainer}>
-          <Text onPress={() => setGender('male')} style={gender === 'male' ? styles.selected : styles.unselected}>Male</Text>
-          <Text onPress={() => setGender('female')} style={gender === 'female' ? styles.selected : styles.unselected}>Female</Text>
-        </View>
+        <Text
+          onPress={() => setGender('male')}
+          style={gender === 'male' ? styles.selected : styles.unselected}
+        >
+          Male
+        </Text>
+        <Text
+          onPress={() => setGender('female')}
+          style={gender === 'female' ? styles.selected : styles.unselected}
+        >
+          Female
+        </Text>
       </View>
 
       <Button title="Calculate" onPress={calculateCalorieGoal} />
+      <Button title="Save changes" onPress={saveToFirebase} />
     </View>
   );
 };
@@ -185,17 +249,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 15,
   },
-  radioContainer: {
-    flexDirection: 'row',
-    marginLeft: 10,
-  },
   selected: {
     fontWeight: 'bold',
-    marginRight: 10,
     color: 'blue',
   },
   unselected: {
-    marginRight: 10,
     color: 'grey',
   },
 });
