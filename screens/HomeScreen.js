@@ -90,33 +90,40 @@ const HomeScreen = () => {
     const fetchCalories = async () => {
       if (user) {
         try {
-          const userRef = doc(FIRESTORE_DB, 'users', user.uid);
-          const userSnap = await getDoc(userRef);
-
-          if (userSnap.exists()) {
-            const userData = userSnap.data();
-            setCalories(userData.dailyCalories);
-            await AsyncStorage.setItem('dailyCalories', userData.dailyCalories.toString());
+          const settingsRef = doc(FIRESTORE_DB, 'user_settings', user.uid);
+          const settingsSnap = await getDoc(settingsRef);
+  
+          if (settingsSnap.exists()) {
+            const settingsData = settingsSnap.data();
+            if (settingsData.dailyCalories) {
+              setCalories(settingsData.dailyCalories);
+              await AsyncStorage.setItem('dailyCalories', settingsData.dailyCalories.toString());
+            } else {
+              setCalories(0);
+              console.warn('No daily calorie goal set for the user.');
+            }
           } else {
-            setCalories(404);
+            console.error('Settings document does not exist.');
+            setCalories(0);
           }
         } catch (error) {
           console.error('Error fetching calories:', error);
-          setCalories(404);
+          setCalories(0);
         }
       } else {
         const storedCalories = parseInt(await AsyncStorage.getItem('dailyCalories'), 10);
         if (!isNaN(storedCalories)) {
           setCalories(storedCalories);
         } else {
-          setCalories(404);
+          setCalories(0);
         }
       }
       setLoading(false);
     };
-
+  
     fetchCalories();
   }, [user]);
+  
 
   if (loading) {
     return (
