@@ -83,6 +83,7 @@ const HomeScreen = () => {
     }
   };
 
+
   const fetchCalories = async () => {
     const user = FIREBASE_AUTH.currentUser;
     if (user) {
@@ -94,8 +95,9 @@ const HomeScreen = () => {
           const userData = userSnap.data();
           setCalories(userData.dailyCalories);
           await AsyncStorage.setItem('dailyCalories', userData.dailyCalories.toString());
+
         } else {
-          setCalories(404);
+          setCalories(0);
         }
       } catch (error) {
         console.error('Error fetching calories:', error);
