@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { StyleSheet, Text, TextInput, View, Pressable, Modal, ActivityIndicator } from 'react-native';
 import PieChart from 'react-native-pie-chart';
 import { BarChart } from 'react-native-gifted-charts';
@@ -54,69 +55,75 @@ const HomeScreen = () => {
     setWater('');
   }
 
-  useEffect(() => {
-    const fetchUsername = async () => {
-      const user = FIREBASE_AUTH.currentUser; 
-      if (user) {
-        try {
-          const userRef = doc(FIRESTORE_DB, 'users', user.uid);  
-          const userSnap = await getDoc(userRef);
-          if (userSnap.exists()) {
-            const userData = userSnap.data();
-            setUsername(userData.username); 
-            await AsyncStorage.setItem('userName', userData.username); 
-          } else {
-            setUsername('User'); 
-          }
-        } catch (error) {
-          console.error("Error getting user data: ", error);
+  const fetchUsername = async () => {
+    const user = FIREBASE_AUTH.currentUser;
+    if (user) {
+      try {
+        const userRef = doc(FIRESTORE_DB, 'users', user.uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          setUsername(userData.username);
+          await AsyncStorage.setItem('userName', userData.username);
+        } else {
           setUsername('User');
-        } finally {
-          setLoading(false);
         }
-      } else {
-        const storedUsername = await AsyncStorage.getItem('userName');
-        if (storedUsername) {
-          setUsername(storedUsername);
-        }
+      } catch (error) {
+        console.error("Error getting user data: ", error);
+        setUsername('User');
+      } finally {
         setLoading(false);
       }
-    };
+    } else {
+      const storedUsername = await AsyncStorage.getItem('userName');
+      if (storedUsername) {
+        setUsername(storedUsername);
+      }
+      setLoading(false);
+    }
+  };
 
-    fetchUsername();
-  }, []);
-  
-  useEffect(() => {
-    const fetchCalories = async () => {
-      if (user) {
-        try {
-          const userRef = doc(FIRESTORE_DB, 'users', user.uid);
-          const userSnap = await getDoc(userRef);
+  const fetchCalories = async () => {
+    const user = FIREBASE_AUTH.currentUser;
+    if (user) {
+      try {
+        const userRef = doc(FIRESTORE_DB, 'user_settings', user.uid);
+        const userSnap = await getDoc(userRef);
 
-          if (userSnap.exists()) {
-            const userData = userSnap.data();
-            setCalories(userData.dailyCalories);
-            await AsyncStorage.setItem('dailyCalories', userData.dailyCalories.toString());
-          } else {
-            setCalories(404);
-          }
-        } catch (error) {
-          console.error('Error fetching calories:', error);
-          setCalories(404);
-        }
-      } else {
-        const storedCalories = parseInt(await AsyncStorage.getItem('dailyCalories'), 10);
-        if (!isNaN(storedCalories)) {
-          setCalories(storedCalories);
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          setCalories(userData.dailyCalories);
+          await AsyncStorage.setItem('dailyCalories', userData.dailyCalories.toString());
         } else {
           setCalories(404);
         }
+      } catch (error) {
+        console.error('Error fetching calories:', error);
+        setCalories(404);
       }
-      setLoading(false);
-    };
+    } else {
+      const storedCalories = parseInt(await AsyncStorage.getItem('dailyCalories'), 10);
+      if (!isNaN(storedCalories)) {
+        setCalories(storedCalories);
+      } else {
+        setCalories(404);
+      }
+    }
+    setLoading(false);
+  };
 
-    fetchCalories();
-  }, [user]);
+  useFocusEffect(
+    useCallback(() => {
+      const fetchData = async () => {
+        setLoading(true);
+        await fetchUsername();
+        await fetchCalories();
+        setLoading(false);
+      };
+
+      fetchData();
+    }, [])
+  );
 
   if (loading) {
     return (
