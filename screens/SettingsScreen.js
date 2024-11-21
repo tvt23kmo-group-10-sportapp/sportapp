@@ -30,7 +30,7 @@ const SettingsPage = () => {
 
   // Fetch user data from Firestore
   useEffect(() => {
-    if (!userId) return; // Wait for userId to be set
+    if (!userId) return;
 
     const fetchUserData = async () => {
       try {
