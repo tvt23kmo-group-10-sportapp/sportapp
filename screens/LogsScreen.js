@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const LogsScreen = () => {
+const LogsScreen = (props) => {
   const [meals, setMeals] = useState([]);
 
   useEffect(() => {

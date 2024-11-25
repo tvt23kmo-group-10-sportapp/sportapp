@@ -1,22 +1,23 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { StyleSheet, Text, TextInput, View, Pressable, Modal, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, TextInput, View, Pressable, Modal, ActivityIndicator, FlatList } from 'react-native';
 import PieChart from 'react-native-pie-chart';
 import { BarChart } from 'react-native-gifted-charts';
 import { FIREBASE_AUTH, FIRESTORE_DB } from '../database/databaseConfig'; 
-import { getDoc, doc } from 'firebase/firestore'; 
+import { getDoc, doc, updateDoc } from 'firebase/firestore'; 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { onAuthStateChanged } from 'firebase/auth'; 
 
 const HomeScreen = () => {
   const [calories, setCalories] = useState('');
-  const [mealType, setMealtype] = useState('');
+  const [totalCalories, setTotalCalories] = useState('');
   const [water, setWater] = useState('');
   const [totalWater, setTotalWater] = useState(0);
   const [show, setShow] = useState(false);
   const [username, setUsername] = useState('User');
   const [user, setUser] = useState(null);  
-  const [loading, setLoading] = useState(true); 
+  const [loading, setLoading] = useState(true);
+  const [meals, setMeals] = useState([]); 
 
   const widthAndHeight = 200;
   const series = [123, 321, 123, 789, 537];
@@ -27,6 +28,61 @@ const HomeScreen = () => {
       frontColor: '#0E87CC'
     }
   ];
+
+
+
+  useEffect(() => {
+    const loadMeals = async () => {
+      try {
+        const storedMeals = await AsyncStorage.getItem('meals');
+        if (storedMeals) {
+          const parsedMeals = JSON.parse(storedMeals);
+          const groupedMeals = groupMealsByDay(parsedMeals);
+          parsedMeals.forEach((meal) => {
+            console.log("Meal for date:", meal.date);
+            meal.meals.forEach((mealItem) => {
+              console.log("Meal item details:", mealItem);
+            });
+          });
+          setMeals(groupedMeals);
+          calculateRemainingCalories(groupedMeals)
+        }
+      } catch (error) {
+        console.error("Error loading meals from storage", error);
+      }
+    };
+  
+    loadMeals();
+  }, []);
+
+  const groupMealsByDay = (meals) => {
+    const mealsByDay = {};
+
+    meals.forEach((meal) => {
+      const date = meal.date;
+      if (!mealsByDay[date]) {
+        mealsByDay[date] = [];
+      }
+      mealsByDay[date].push(...meal.meals);
+    });
+
+    return Object.keys(mealsByDay).map((date) => ({
+      date,
+      meals: mealsByDay[date],
+    }));
+  };
+
+  const renderMealItem = ({ item }) => (
+    <View style={styles.mealItem}>
+      <Text style={styles.mealText}>
+        <Text style={styles.boldText}>{item.mealType}</Text> | {item.name}
+        <Text style={styles.boldText}> Calories: {item.calories} kcal</Text> | 
+        Protein: {item.protein} g | 
+        Carbs: {item.carbohydrates} g | 
+        Fat: {item.fat} g
+      </Text>
+    </View>
+  );
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(FIREBASE_AUTH, (currentUser) => {
@@ -46,14 +102,49 @@ const HomeScreen = () => {
     setShow(true);
   }
 
-  const saveWater = () => {
+  const saveWater = async  () => {
     const waterIntake = parseInt(water, 10);
     if(!isNaN(waterIntake)) {
-      setTotalWater(totalWater + waterIntake);
+      const newTotalWater = totalWater + waterIntake;
+      setTotalWater(newTotalWater);
+      await AsyncStorage.setItem('totalWater', newTotalWater.toString());
     }
     setShow(false);
     setWater('');
   }
+
+  const calculateRemainingCalories = (loadedMeals) => {
+    const totalMealCalories = loadedMeals.reduce((total, meal) => {
+      return total + meal.meals.reduce((mealTotal, item) => {
+        const itemCalories = parseFloat(item.calories) || 0;
+        return mealTotal + itemCalories;
+      }, 0);
+    }, 0);
+    
+    const remainingCalories = parseFloat(calories) - totalMealCalories
+
+    setTotalCalories(remainingCalories);
+    updateCaloriesInFirebase(remainingCalories);
+  };
+
+  useEffect(() => {
+    calculateRemainingCalories(meals);
+  }, [meals, calories]);
+
+  const updateCaloriesInFirebase = async (remainingCalories) => {
+    const user = FIREBASE_AUTH.currentUser;
+    if (user) {
+      try {
+        const userRef = doc(FIRESTORE_DB, 'user_settings', user.uid);
+        await updateDoc(userRef, { remainingCalories });
+        console.log('Calorie information updated in Firebase successfully!');
+      } catch (error) {
+        console.error('Error updating calorie information in Firebase:', error);
+      }
+    } else {
+      console.warn('No user is logged in. Cannot update calorie information.');
+    }
+  };
 
   const fetchUsername = async () => {
     const user = FIREBASE_AUTH.currentUser;
@@ -83,32 +174,34 @@ const HomeScreen = () => {
     }
   };
 
-
   const fetchCalories = async () => {
     const user = FIREBASE_AUTH.currentUser;
     if (user) {
       try {
         const userRef = doc(FIRESTORE_DB, 'user_settings', user.uid);
         const userSnap = await getDoc(userRef);
-
+  
         if (userSnap.exists()) {
           const userData = userSnap.data();
-          setCalories(userData.dailyCalories);
-          await AsyncStorage.setItem('dailyCalories', userData.dailyCalories.toString());
-
+          const dailyCalories = parseInt(userData.remainingCalories, 10) || 0;
+          setCalories(dailyCalories);
+          calculateRemainingCalories(meals)
+  
+          setTotalCalories(dailyCalories);
+          await AsyncStorage.setItem('dailyCalories', remainingCalories.toString());
         } else {
           setCalories(0);
         }
       } catch (error) {
         console.error('Error fetching calories:', error);
-        setCalories(404);
+        setCalories(0);
       }
     } else {
       const storedCalories = parseInt(await AsyncStorage.getItem('dailyCalories'), 10);
       if (!isNaN(storedCalories)) {
         setCalories(storedCalories);
       } else {
-        setCalories(404);
+        setCalories(0);
       }
     }
     setLoading(false);
@@ -147,7 +240,7 @@ const HomeScreen = () => {
             coverFill={'#FFF'}
           />
           <Text style={styles.caloriesText}>
-            {calories} calories {'\n'} remaining
+            {totalCalories} calories {'\n'} remaining
           </Text>
         </View>
         <View style={styles.chart}>
@@ -164,7 +257,7 @@ const HomeScreen = () => {
             <View style={styles.centeredView}>
               <View style={styles.modalView}>
                 <Text style={styles.modalText}>Enter amount</Text>
-                <TextInput 
+                <TextInput
                   placeholder='ml'
                   value={water}
                   onChangeText={setWater}
@@ -187,6 +280,26 @@ const HomeScreen = () => {
       </View>
       <View style={styles.meals}>
         <Text style={styles.mealsTitle}>Your meals</Text>
+        <View>
+        {meals.length === 0 ? (
+          <Text style={styles.noLogsText}>You have no saved meals yet</Text>
+        ) : (
+          <FlatList
+            data={meals}
+            keyExtractor={(item) => item.date}
+            renderItem={({ item }) => (
+              <View style={styles.dayContainer}>
+                <FlatList
+                  data={item.meals}
+                  keyExtractor={(meal, index) => index.toString()}
+                  renderItem={renderMealItem}
+                />
+              </View>
+            )}
+            style={styles.mealList}
+          />
+        )}
+        </View>
         <Pressable style={styles.mealButton} onPress={() => props.navigation.navigate('Add Meal')}>
           <Text style={styles.buttonText}>Add meal</Text>
         </Pressable>
@@ -223,7 +336,7 @@ const styles = StyleSheet.create({
     top: '40%',
   },
   meals: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     marginTop: 20,
     padding: 10,
     justifyContent:'space-between',
