@@ -11,6 +11,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 const HomeScreen = () => {
   const [calories, setCalories] = useState('');
   const [totalCalories, setTotalCalories] = useState('');
+  const [remainingCalories, setRemainingCalories] = useState(0)
   const [water, setWater] = useState('');
   const [totalWater, setTotalWater] = useState(0);
   const [show, setShow] = useState(false);
@@ -113,22 +114,27 @@ const HomeScreen = () => {
     setWater('');
   }
 
-  const calculateRemainingCalories = (loadedMeals) => {
+  const calculateRemainingCalories = (loadedMeals, dailyCalorieGoal) => {
     const totalMealCalories = loadedMeals.reduce((total, meal) => {
       return total + meal.meals.reduce((mealTotal, item) => {
         const itemCalories = parseFloat(item.calories) || 0;
         return mealTotal + itemCalories;
       }, 0);
     }, 0);
-    
-    const remainingCalories = parseFloat(calories) - totalMealCalories
+  
+    console.log("Total meal calories:", totalMealCalories);
+    const remaining = dailyCalorieGoal - totalMealCalories;
+    console.log("Remaining calories:", remaining);
+    const roundedRemaining = parseFloat(remaining.toFixed(2));
 
-    setTotalCalories(remainingCalories);
-    updateCaloriesInFirebase(remainingCalories);
+    setRemainingCalories(roundedRemaining);
+    updateCaloriesInFirebase(roundedRemaining);
   };
 
   useEffect(() => {
-    calculateRemainingCalories(meals);
+    if (calories > 0) {
+      calculateRemainingCalories(meals, calories);
+    }
   }, [meals, calories]);
 
   const updateCaloriesInFirebase = async (remainingCalories) => {
@@ -183,12 +189,14 @@ const HomeScreen = () => {
   
         if (userSnap.exists()) {
           const userData = userSnap.data();
-          const dailyCalories = parseInt(userData.remainingCalories, 10) || 0;
+          const dailyCalories = parseInt(userData.dailyCalories, 10) || 0;
+  
+          console.log('Fetched daily calories:', dailyCalories);
           setCalories(dailyCalories);
-          calculateRemainingCalories(meals)
+          calculateRemainingCalories(meals, dailyCalories);
   
           setTotalCalories(dailyCalories);
-          await AsyncStorage.setItem('dailyCalories', remainingCalories.toString());
+          await AsyncStorage.setItem('dailyCalories', dailyCalories.toString());
         } else {
           setCalories(0);
         }
@@ -240,7 +248,7 @@ const HomeScreen = () => {
             coverFill={'#FFF'}
           />
           <Text style={styles.caloriesText}>
-            {totalCalories} calories {'\n'} remaining
+            {remainingCalories} calories {'\n'} remaining
           </Text>
         </View>
         <View style={styles.chart}>
