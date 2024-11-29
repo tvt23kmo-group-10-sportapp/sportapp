@@ -10,8 +10,47 @@ export default function UserSetupScreen({ navigation }) {
   const [sex, setSex] = useState('');
   const [height, setHeight] = useState('');
   const [weight, setWeight] = useState('');
+  const [age, setAge] = useState('');
   const [activityLevel, setActivityLevel] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const calculateDailyGoals = () => {
+    const weightNum = parseFloat(weight);
+    const heightNum = parseFloat(height);
+    const ageNum = parseInt(age);
+
+    if (isNaN(weightNum) || isNaN(heightNum) || isNaN(ageNum)) {
+      return { dailyCalories: '', dailyWater: '' };
+    }
+
+    let bmr;
+    if (sex === 'male') {
+      bmr = 88.362 + 13.397 * weightNum + 4.799 * heightNum - 5.677 * ageNum;
+    } else {
+      bmr = 447.593 + 9.247 * weightNum + 3.098 * heightNum - 4.33 * ageNum;
+    }
+
+    let calorieGoal;
+    switch (activityLevel) {
+      case 'low':
+        calorieGoal = bmr * 1.2;
+        break;
+      case 'moderate':
+        calorieGoal = bmr * 1.55;
+        break;
+      case 'high':
+        calorieGoal = bmr * 1.725;
+        break;
+      default:
+        calorieGoal = bmr;
+    }
+
+    const dailyWater = (weightNum * 35).toFixed(0); // in ml
+    return {
+      dailyCalories: calorieGoal.toFixed(0),
+      dailyWater,
+    };
+  };
 
   const handleSubmit = async () => {
     if (!username || !sex || !height || !weight || !activityLevel) {
@@ -19,8 +58,8 @@ export default function UserSetupScreen({ navigation }) {
       return;
     }
 
-    if (isNaN(height) || isNaN(weight)) {
-      Alert.alert('Error', 'Height and Weight must be numeric');
+    if (isNaN(height) || isNaN(weight) || isNaN(age)) {
+      Alert.alert('Error', 'Height and Weight and Age must be numeric');
       return;
     }
 
@@ -29,8 +68,25 @@ export default function UserSetupScreen({ navigation }) {
     try {
       const user = FIREBASE_AUTH.currentUser;
       if (user) {
-        const userRef = doc(FIRESTORE_DB, "users", user.uid); 
-        await setDoc(userRef, {username,sex,height,weight,activityLevel},{ merge: true });
+        const { dailyCalories, dailyWater } = calculateDailyGoals();
+
+        const userRef = doc(FIRESTORE_DB, 'user_settings', user.uid);
+        await setDoc(
+          userRef,
+          {
+            username,
+            sex,
+            height,
+            weight,
+            age,
+            activity: activityLevel,
+            dailyCalories,
+            dailyWater,
+            timestamp: new Date(),
+          },
+          { merge: true }
+        );
+
         await AsyncStorage.setItem('userName', username);
         Alert.alert('Profile Setup', 'Your profile has been successfully updated!');
         setLoading(false);
@@ -72,6 +128,14 @@ export default function UserSetupScreen({ navigation }) {
         keyboardType="numeric"
       />
 
+      <TextInput
+        style={styles.input}
+        placeholder="Age"
+        value={age}
+        onChangeText={setAge}
+        keyboardType="numeric"
+      />
+
       <View style={styles.pickerContainer}>
         <Text>Sex</Text>
         <Picker
@@ -90,13 +154,12 @@ export default function UserSetupScreen({ navigation }) {
         <Picker
           selectedValue={activityLevel}
           style={styles.picker}
-          onValueChange={itemValue => setActivityLevel(itemValue)}
+          onValueChange={(itemValue) => setActivityLevel(itemValue)}
         >
           <Picker.Item label="Select Activity Level" value="" />
-          <Picker.Item label="Sedentary" value="sedentary" />
-          <Picker.Item label="Lightly Active" value="lightly_active" />
-          <Picker.Item label="Moderately Active" value="moderately_active" />
-          <Picker.Item label="Very Active" value="very_active" />
+          <Picker.Item label="Low" value="low" />
+          <Picker.Item label="Moderate" value="moderate" />
+          <Picker.Item label="High" value="high" />
         </Picker>
       </View>
 
