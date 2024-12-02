@@ -9,7 +9,7 @@ const SettingsPage = () => {
   const [weight, setWeight] = useState('');
   const [age, setAge] = useState('');
   const [activity, setActivity] = useState('low');
-  const [gender, setGender] = useState('male');
+  const [sex, setSex] = useState('male');
   const [dailyCalories, setDailyCalories] = useState('');
   const [dailyWater, setDailyWater] = useState('');
   const [isModalVisible, setModalVisible] = useState(false);
@@ -41,7 +41,7 @@ const SettingsPage = () => {
           setWeight(data.weight || '');
           setAge(data.age || '');
           setActivity(data.activity || 'low');
-          setGender(data.gender || 'male');
+          setSex(data.sex || 'male');
           setDailyCalories(data.dailyCalories || '');
           setDailyWater(data.dailyWater || '');
         }
@@ -65,7 +65,7 @@ const SettingsPage = () => {
     }
 
     let bmr;
-    if (gender === 'male') {
+    if (sex === 'male') {
       bmr = 88.362 + 13.397 * weightNum + 4.799 * heightNum - 5.677 * ageNum;
     } else {
       bmr = 447.593 + 9.247 * weightNum + 3.098 * heightNum - 4.33 * ageNum;
@@ -103,7 +103,7 @@ const SettingsPage = () => {
         weight,
         age,
         activity,
-        gender,
+        sex,
         dailyCalories,
         dailyWater,
         timestamp: new Date(),
@@ -175,17 +175,17 @@ const SettingsPage = () => {
         </View>
       </Modal>
 
-      <Text style={styles.label}>Gender:</Text>
+      <Text style={styles.label}>Sex:</Text>
       <View style={styles.genderContainer}>
         <Text
-          onPress={() => setGender('male')}
-          style={gender === 'male' ? styles.selected : styles.unselected}
+          onPress={() => setSex('male')}
+          style={sex === 'male' ? styles.selected : styles.unselected}
         >
           Male
         </Text>
         <Text
-          onPress={() => setGender('female')}
-          style={gender === 'female' ? styles.selected : styles.unselected}
+          onPress={() => setSex('female')}
+          style={sex === 'female' ? styles.selected : styles.unselected}
         >
           Female
         </Text>
