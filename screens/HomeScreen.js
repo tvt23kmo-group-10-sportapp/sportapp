@@ -6,7 +6,9 @@ import { BarChart } from 'react-native-gifted-charts';
 import { FIREBASE_AUTH, FIRESTORE_DB } from '../database/databaseConfig'; 
 import { getDoc, doc, updateDoc } from 'firebase/firestore'; 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { onAuthStateChanged } from 'firebase/auth'; 
+import { onAuthStateChanged } from 'firebase/auth';
+import { Button } from 'react-native-paper';
+import { useNavigation } from '@react-navigation/native'; // navigointi 
 
 const HomeScreen = () => {
   const [calories, setCalories] = useState('');
@@ -29,7 +31,7 @@ const HomeScreen = () => {
     }
   ];
 
-
+  const navigation = useNavigation(); // navigointikontrolli
 
   useEffect(() => {
     const loadMeals = async () => {
@@ -228,6 +230,11 @@ const HomeScreen = () => {
     );
   }
 
+  // Funktio navigointiin Search-näyttöön
+  const handleNavigateToSearch = () => {
+    navigation.navigate('Search'); // Navigoi Search-näyttöön
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Welcome, {username}!</Text>
@@ -245,9 +252,6 @@ const HomeScreen = () => {
         </View>
         <View style={styles.chart}>
           <BarChart data={barData} style={styles.water} />
-          <Pressable style={styles.waterButton} onPress={clickWaterButton}>
-            <Text style={styles.buttonText}>Add water</Text>
-          </Pressable>
           <Modal
             transparent={false}
             visible={show}
@@ -262,47 +266,54 @@ const HomeScreen = () => {
                   value={water}
                   onChangeText={setWater}
                 />
-                <Pressable onPress={saveWater}>
-                  <Text>Save</Text>
+                <Pressable onPress={saveWater} style={styles.button}>
+                  <Text style={styles.buttonText}>Save</Text>
                 </Pressable>
                 <Pressable
                   style={[styles.button, styles.buttonClose]}
                   onPress={() => {
                     setShow(!show);
                   }}>
-                  <Text></Text>
-                  <Text style={styles.textStyle}>Close</Text>
+                  <Text style={styles.buttonText}>Close</Text>
                 </Pressable>
               </View>
             </View>
           </Modal>
         </View>
       </View>
+  
+      <View style={styles.buttonsContainer}>
+        {/* Molemmat painikkeet käyttävät samaa tyyliä */}
+        <Pressable style={styles.button} onPress={handleNavigateToSearch}>
+          <Text style={styles.buttonText}>Add meal</Text>
+        </Pressable>
+        <Pressable style={styles.button} onPress={clickWaterButton}>
+          <Text style={styles.buttonText}>Add water</Text>
+        </Pressable>
+      </View>
+  
       <View style={styles.meals}>
         <Text style={styles.mealsTitle}>Your meals</Text>
         <View>
-        {meals.length === 0 ? (
-          <Text style={styles.noLogsText}>You have no saved meals yet</Text>
-        ) : (
-          <FlatList
-            data={meals}
-            keyExtractor={(item) => item.date}
-            renderItem={({ item }) => (
-              <View style={styles.dayContainer}>
-                <FlatList
-                  data={item.meals}
-                  keyExtractor={(meal, index) => index.toString()}
-                  renderItem={renderMealItem}
-                />
-              </View>
-            )}
-            style={styles.mealList}
-          />
-        )}
+          {meals.length === 0 ? (
+            <Text style={styles.noLogsText}>You have no saved meals yet</Text>
+          ) : (
+            <FlatList
+              data={meals}
+              keyExtractor={(item) => item.date}
+              renderItem={({ item }) => (
+                <View style={styles.dayContainer}>
+                  <FlatList
+                    data={item.meals}
+                    keyExtractor={(meal, index) => index.toString()}
+                    renderItem={renderMealItem}
+                  />
+                </View>
+              )}
+              style={styles.mealList}
+            />
+          )}
         </View>
-        <Pressable style={styles.mealButton} onPress={() => props.navigation.navigate('Add Meal')}>
-          <Text style={styles.buttonText}>Add meal</Text>
-        </Pressable>
       </View>
     </View>
   );
@@ -339,33 +350,30 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     marginTop: 20,
     padding: 10,
-    justifyContent:'space-between',
+    justifyContent: 'space-between',
   },
   mealsTitle: {
     fontSize: 20,
     marginBottom: 10,
   },
-  mealButton: {
-    backgroundColor: 'grey',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row', 
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderRadius: 5,
-    width: 100,    
+  buttonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
   },
-  waterButton: {
-    backgroundColor: 'grey',
+  button: {
+    width: '45%',
+    backgroundColor: '#0E87CC',
+    paddingVertical: 10,
+    borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row', 
-    paddingVertical: 10,
-    paddingHorizontal: 10,
+    flexDirection: 'row',
   },
   buttonText: {
     color: '#fff',
     fontSize: 16,
+    textAlign: 'center',
   },
   water: {
     marginTop: 20,
@@ -373,7 +381,7 @@ const styles = StyleSheet.create({
   centeredView: {
     flex: 1,
     alignItems: 'center',
-    justifyContent:'center',
+    justifyContent: 'center',
   },
   modalView: {
     margin: 20,
