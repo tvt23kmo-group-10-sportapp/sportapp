@@ -53,7 +53,6 @@ const HomeScreen = () => {
         console.error("Error loading meals from storage", error);
       }
     };
-  
     loadMeals();
   }, []);
 
