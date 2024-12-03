@@ -7,12 +7,14 @@ import { FIREBASE_AUTH, FIRESTORE_DB } from '../database/databaseConfig';
 import { getDoc, doc, updateDoc } from 'firebase/firestore'; 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { onAuthStateChanged } from 'firebase/auth';
-import { Button } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native'; // navigointi 
 
 const HomeScreen = () => {
   const [calories, setCalories] = useState('');
   const [totalCalories, setTotalCalories] = useState('');
+  const [totalProtein, setTotalProtein] = useState('')
+  const [totalFat, setTotalFat] = useState('')
+  const [totalCarbs, setTotalCarbs] = useState('')
   const [water, setWater] = useState('');
   const [totalWater, setTotalWater] = useState(0);
   const [show, setShow] = useState(false);
@@ -20,10 +22,10 @@ const HomeScreen = () => {
   const [user, setUser] = useState(null);  
   const [loading, setLoading] = useState(true);
   const [meals, setMeals] = useState([]); 
-
+  const [series, setSeries] = useState([])
+  const [sliceColor, setSliceColor] = useState([])
+  
   const widthAndHeight = 200;
-  const series = [123, 321, 123, 789, 537];
-  const sliceColor = ['#fbd203', '#ffb300', '#ff9100', '#ff6c00', '#ff3c00'];
   const barData = [
     {
       value: totalWater,
@@ -53,7 +55,6 @@ const HomeScreen = () => {
         console.error("Error loading meals from storage", error);
       }
     };
-  
     loadMeals();
   }, []);
 
@@ -91,9 +92,11 @@ const HomeScreen = () => {
       if (currentUser) {
         console.log('User logged in:', currentUser.uid);
         setUser(currentUser);
+        fetchUsername(currentUser)
       } else {
         console.log('No user logged in');
         setUser(null);
+        setUsername('User')
       }
     });
 
@@ -114,22 +117,72 @@ const HomeScreen = () => {
     setShow(false);
     setWater('');
   }
+  useEffect(() => { 
+  const calculateRemainingCalories = async (loadedMeals) => {
+    console.log("Loaded Meals: ", loadedMeals);
+    if (!Array.isArray(loadedMeals)) {
+      console.error('Error: loadedMeals is not an array', loadedMeals);
+      return;
+    }
+  
+    const user = FIREBASE_AUTH.currentUser;
+    if (!user) {
+      console.error('No authenticated user found.');
+      return;
+    }
+  
+    const userRef = doc(FIRESTORE_DB, 'user_settings', user.uid);
+    const userSnap = await getDoc(userRef);
+  
+    if (!userSnap.exists()) {
+      console.error('User settings not found in Firebase.');
+      return;
+    }
+  
+    const userSettings = userSnap.data();
+    const dailyCalories = parseFloat(userSettings.dailyCalories) || 0;
+    let totalProtein = 0;
+    let totalCarbs = 0;
+    let totalFat = 0;
+  
+    loadedMeals.forEach((meal) => {
+      meal.meals.forEach((item) => {
+        totalProtein += parseFloat(item.protein) || 0;
+        totalCarbs += parseFloat(item.carbohydrates) || 0;
+        totalFat += parseFloat(item.fat) || 0;
+      });
+    });
 
-  const calculateRemainingCalories = (loadedMeals) => {
+    const totalMacros = totalProtein + totalCarbs + totalFat;
+
+    if (totalMacros > 0) {
+    const proteinPercentage = totalMacros > 0 ? ((totalProtein / totalMacros) * 100).toFixed(1) : 0;
+    const carbsPercentage = totalMacros > 0 ? ((totalCarbs / totalMacros) * 100).toFixed(1) : 0;
+    const fatPercentage = totalMacros > 0 ? ((totalFat / totalMacros) * 100).toFixed(1) : 0;
+    setSeries([parseFloat(proteinPercentage), parseFloat(carbsPercentage), parseFloat(fatPercentage)]);
+    setSliceColor(['#ff0000', '#00ff00', '#0000ff']);
+    } else {
+      setSeries([1, 1, 1]);
+    }
     const totalMealCalories = loadedMeals.reduce((total, meal) => {
-      return total + meal.meals.reduce((mealTotal, item) => {
-        const itemCalories = parseFloat(item.calories) || 0;
-        return mealTotal + itemCalories;
-      }, 0);
+      return (
+        total +
+        meal.meals.reduce((mealTotal, item) => {
+          const itemCalories = parseFloat(item.calories) || 0;
+          return mealTotal + itemCalories;
+        }, 0)
+      );
     }, 0);
-    
-    const remainingCalories = parseFloat(calories) - totalMealCalories
-
+  
+    const remainingCalories = Math.max(dailyCalories - totalMealCalories, 0);
     setTotalCalories(remainingCalories);
-    updateCaloriesInFirebase(remainingCalories);
+    setTotalProtein(totalProtein);
+    setTotalCarbs(totalCarbs);
+    setTotalFat(totalFat);
+    await updateCaloriesInFirebase(remainingCalories);
+    console.log("Total Meal Calories: ", totalMealCalories); // Debug
+    console.log("Remaining Calories: ", remainingCalories); // Debug
   };
-
-  useEffect(() => {
     calculateRemainingCalories(meals);
   }, [meals, calories]);
 
@@ -152,12 +205,13 @@ const HomeScreen = () => {
     const user = FIREBASE_AUTH.currentUser;
     if (user) {
       try {
-        const userRef = doc(FIRESTORE_DB, 'users', user.uid);
+        const userRef = doc(FIRESTORE_DB, 'user_settings', user.uid);
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
           const userData = userSnap.data();
-          setUsername(userData.username);
-          await AsyncStorage.setItem('userName', userData.username);
+          const usernameToStore = userData.username || 'User';
+          setUsername(usernameToStore);
+          await AsyncStorage.setItem('username', usernameToStore);
         } else {
           setUsername('User');
         }
@@ -168,45 +222,12 @@ const HomeScreen = () => {
         setLoading(false);
       }
     } else {
-      const storedUsername = await AsyncStorage.getItem('userName');
+      const storedUsername = await AsyncStorage.getItem('username');
       if (storedUsername) {
         setUsername(storedUsername);
       }
-      setLoading(false);
+      setUsername('User');
     }
-  };
-
-  const fetchCalories = async () => {
-    const user = FIREBASE_AUTH.currentUser;
-    if (user) {
-      try {
-        const userRef = doc(FIRESTORE_DB, 'user_settings', user.uid);
-        const userSnap = await getDoc(userRef);
-  
-        if (userSnap.exists()) {
-          const userData = userSnap.data();
-          const dailyCalories = parseInt(userData.remainingCalories, 10) || 0;
-          setCalories(dailyCalories);
-          calculateRemainingCalories(meals)
-  
-          setTotalCalories(dailyCalories);
-          await AsyncStorage.setItem('dailyCalories', remainingCalories.toString());
-        } else {
-          setCalories(0);
-        }
-      } catch (error) {
-        console.error('Error fetching calories:', error);
-        setCalories(0);
-      }
-    } else {
-      const storedCalories = parseInt(await AsyncStorage.getItem('dailyCalories'), 10);
-      if (!isNaN(storedCalories)) {
-        setCalories(storedCalories);
-      } else {
-        setCalories(0);
-      }
-    }
-    setLoading(false);
   };
 
   useFocusEffect(
@@ -214,7 +235,7 @@ const HomeScreen = () => {
       const fetchData = async () => {
         setLoading(true);
         await fetchUsername();
-        await fetchCalories();
+        await calculateRemainingCalories();
         setLoading(false);
       };
 
@@ -247,6 +268,9 @@ const HomeScreen = () => {
             coverFill={'#FFF'}
           />
           <Text style={styles.caloriesText}>
+          Protein: {parseFloat(totalProtein.toFixed(2))} g ({Math.round(series[0])}%) {'\n'}
+          Carbs: {parseFloat(totalCarbs.toFixed(2))} g ({Math.round(series[1])}%) {'\n'}
+          Fat: {parseFloat(totalFat.toFixed(2))} g ({Math.round(series[2])}%) {'\n'}
             {totalCalories} calories {'\n'} remaining
           </Text>
         </View>
@@ -344,7 +368,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 18,
     color: '#000',
-    top: '40%',
+    top: '25%',
   },
   meals: {
     flexDirection: 'column',
@@ -398,6 +422,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
+  },
+  dayContainer: {
+    marginBottom: 20,
+    backgroundColor: '#ffffff',
+    padding: 15,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 4,
   },
 });
 
