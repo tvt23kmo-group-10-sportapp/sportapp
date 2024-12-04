@@ -88,14 +88,15 @@ const HomeScreen = () => {
   
   useEffect(() => {
     const fetchCalories = async () => {
+      const user = FIREBASE_AUTH.currentUser;
       if (user) {
         try {
           const userRef = doc(FIRESTORE_DB, 'users', user.uid);
           const userSnap = await getDoc(userRef);
-
+  
           if (userSnap.exists()) {
             const userData = userSnap.data();
-            setCalories(userData.dailyCalories);
+            setCalories(userData.dailyCalories || 404); 
             await AsyncStorage.setItem('dailyCalories', userData.dailyCalories.toString());
           } else {
             setCalories(404);
@@ -114,7 +115,6 @@ const HomeScreen = () => {
       }
       setLoading(false);
     };
-
     fetchCalories();
   }, [user]);
 

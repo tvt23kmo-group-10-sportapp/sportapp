@@ -13,25 +13,76 @@ export default function UserSetupScreen({ navigation }) {
   const [activityLevel, setActivityLevel] = useState('');
   const [loading, setLoading] = useState(false);
 
+  
+
+  const calculateCalorieGoal = () => {
+    const weightNum = parseFloat(weight);
+    const heightNum = parseFloat(height);
+    const ageNum = parseInt(age);
+  
+    if (isNaN(weightNum) || isNaN(heightNum) || isNaN(ageNum)) {
+      Alert.alert("Error", "Please enter valid numbers for height, weight, and age.");
+      return;
+    }
+  
+    let bmr;
+    if (sex === 'male') {
+      bmr = 88.362 + (13.397 * weightNum) + (4.799 * heightNum) - (5.677 * ageNum);
+    } else {
+      bmr = 447.593 + (9.247 * weightNum) + (3.098 * heightNum) - (4.330 * ageNum);
+    }
+  
+    let calorieGoal;
+    switch (activityLevel) {
+      case 'low':
+        calorieGoal = bmr * 1.2;
+        break;
+      case 'moderate':
+        calorieGoal = bmr * 1.55;
+        break;
+      case 'high':
+        calorieGoal = bmr * 1.725;
+        break;
+      default:
+        calorieGoal = bmr;
+    }
+  
+    return calorieGoal.toFixed(0);
+  };
+  
   const handleSubmit = async () => {
     if (!username || !sex || !height || !weight || !activityLevel) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
-
+  
     if (isNaN(height) || isNaN(weight)) {
       Alert.alert('Error', 'Height and Weight must be numeric');
       return;
     }
-
+  
     setLoading(true);
-
+  
     try {
       const user = FIREBASE_AUTH.currentUser;
       if (user) {
-        const userRef = doc(FIRESTORE_DB, "users", user.uid); 
-        await setDoc(userRef, {username,sex,height,weight,activityLevel},{ merge: true });
-        await AsyncStorage.setItem('userName', username);
+        const userRef = doc(FIRESTORE_DB, "users", user.uid);
+        const calorieGoal = calculateCalorieGoal();
+  
+        await setDoc(userRef, {
+          username,
+          sex,
+          height,
+          weight,
+          activityLevel,
+          dailyCalories: calorieGoal 
+        }, { merge: true });
+  
+        if (username) {
+          await AsyncStorage.setItem('userName', username);
+        }
+        
+        await AsyncStorage.setItem('dailyCalories', calorieGoal);
         Alert.alert('Profile Setup', 'Your profile has been successfully updated!');
         setLoading(false);
         navigation.navigate('Home');
@@ -72,6 +123,14 @@ export default function UserSetupScreen({ navigation }) {
         keyboardType="numeric"
       />
 
+      <TextInput
+        style={styles.input}
+        placeholder="Age"
+        value={weight}
+        onChangeText={setWeight}
+        keyboardType="numeric"
+      />
+
       <View style={styles.pickerContainer}>
         <Text>Sex</Text>
         <Picker
@@ -93,10 +152,9 @@ export default function UserSetupScreen({ navigation }) {
           onValueChange={itemValue => setActivityLevel(itemValue)}
         >
           <Picker.Item label="Select Activity Level" value="" />
-          <Picker.Item label="Sedentary" value="sedentary" />
-          <Picker.Item label="Lightly Active" value="lightly_active" />
-          <Picker.Item label="Moderately Active" value="moderately_active" />
-          <Picker.Item label="Very Active" value="very_active" />
+          <Picker.Item label="Low" value="low" />
+          <Picker.Item label="Moderate" value="moderate" />
+          <Picker.Item label="High" value="high" />
         </Picker>
       </View>
 

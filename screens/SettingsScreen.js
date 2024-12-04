@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, Button, Modal, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, Button, Modal, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { FIREBASE_AUTH, FIRESTORE_DB } from '../database/databaseConfig';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 
 const SettingsPage = () => {
   const [height, setHeight] = useState('');
@@ -9,9 +11,34 @@ const SettingsPage = () => {
   const [gender, setGender] = useState('male');
   const [dailyCalories, setDailyCalories] = useState('');
   const [dailyWater, setDailyWater] = useState('');
-  const [isModalVisible, setModalVisible] = useState(false); // for Modal visibility
+  const [isModalVisible, setModalVisible] = useState(false);
 
-  const calculateCalorieGoal = () => {
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const user = FIREBASE_AUTH.currentUser;
+      if (user) {
+        const userRef = doc(FIRESTORE_DB, "users", user.uid);
+        const docSnap = await getDoc(userRef);
+
+        if (docSnap.exists()) {
+          const userData = docSnap.data();
+          setHeight(userData.height || '');
+          setWeight(userData.weight || '');
+          setAge(userData.age || '');
+          setActivity(userData.activityLevel || 'low');
+          setGender(userData.sex || 'male');
+          setDailyCalories(userData.dailyCalories || '404');
+          setDailyWater(userData.dailyWater || '')
+        } else {
+          Alert.alert('Error', 'No user data found!');
+        }
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  const calculateCalorieGoal = async () => {
     const weightNum = parseFloat(weight);
     const heightNum = parseFloat(height);
     const ageNum = parseInt(age);
@@ -21,7 +48,6 @@ const SettingsPage = () => {
       return;
     }
 
-    // Calculate BMR based on gender
     let bmr;
     if (gender === 'male') {
       bmr = 88.362 + (13.397 * weightNum) + (4.799 * heightNum) - (5.677 * ageNum);
@@ -29,7 +55,6 @@ const SettingsPage = () => {
       bmr = 447.593 + (9.247 * weightNum) + (3.098 * heightNum) - (4.330 * ageNum);
     }
 
-    // Adjust BMR based on activity level
     let calorieGoal;
     switch (activity) {
       case 'low':
@@ -45,17 +70,31 @@ const SettingsPage = () => {
         calorieGoal = bmr;
     }
 
-    // Setting daily calorie goal
     setDailyCalories(calorieGoal.toFixed(0));
+    const waterGoal = (weightNum * 35).toFixed(0);
+    setDailyWater(waterGoal);  
 
-    // Setting daily water goal
-    setDailyWater((weightNum * 35).toFixed(0)); // in ml
+    const user = FIREBASE_AUTH.currentUser;
+    if (user) {
+      const userRef = doc(FIRESTORE_DB, "users", user.uid);
+      await updateDoc(userRef, { dailyCalories: calorieGoal.toFixed(0), dailyWater: waterGoal });
+    }
+  };
+
+  const saveChanges = async () => {
+    const user = FIREBASE_AUTH.currentUser;
+    if (user) {
+      const userRef = doc(FIRESTORE_DB, "users", user.uid);
+      await updateDoc(userRef, { height, weight, age, activityLevel: activity, sex: gender });
+    } else {
+      Alert.alert('Error', 'User not found.');
+    }
   };
 
   const activityOptions = [
     { label: 'Low', value: 'low' },
     { label: 'Moderate', value: 'moderate' },
-    { label: 'High', value: 'high' }
+    { label: 'High', value: 'high' },
   ];
 
   return (
@@ -92,7 +131,13 @@ const SettingsPage = () => {
 
       <Text style={styles.label}>Activity Level:</Text>
       <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.dropdownButton}>
-        <Text style={styles.dropdownText}>{activityOptions.find(option => option.value === activity).label}</Text>
+        <Text style={styles.dropdownText}>
+          {
+            activityOptions.find(option => option.value === activity)
+              ? activityOptions.find(option => option.value === activity).label
+              : 'Select Activity Level' 
+          }
+        </Text>
       </TouchableOpacity>
 
       <Modal
@@ -128,6 +173,7 @@ const SettingsPage = () => {
         </View>
       </View>
 
+      <Button title="Save Changes" onPress={saveChanges} />
       <Button title="Calculate" onPress={calculateCalorieGoal} />
     </View>
   );
