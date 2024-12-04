@@ -5,7 +5,7 @@ import { FIRESTORE_DB } from '../database/databaseConfig';
 import { FIREBASE_AUTH } from '../database/databaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
 
-const LogsScreen = () => {
+const LogsScreen = (props) => {
   const [meals, setMeals] = useState([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 

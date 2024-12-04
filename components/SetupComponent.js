@@ -10,10 +10,9 @@ export default function UserSetupScreen({ navigation }) {
   const [sex, setSex] = useState('');
   const [height, setHeight] = useState('');
   const [weight, setWeight] = useState('');
+  const [age, setAge] = useState('');
   const [activityLevel, setActivityLevel] = useState('');
   const [loading, setLoading] = useState(false);
-
-  
 
   const calculateCalorieGoal = () => {
     const weightNum = parseFloat(weight);
@@ -149,7 +148,7 @@ export default function UserSetupScreen({ navigation }) {
         <Picker
           selectedValue={activityLevel}
           style={styles.picker}
-          onValueChange={itemValue => setActivityLevel(itemValue)}
+          onValueChange={(itemValue) => setActivityLevel(itemValue)}
         >
           <Picker.Item label="Select Activity Level" value="" />
           <Picker.Item label="Low" value="low" />

@@ -3,12 +3,13 @@ import { View, Text, TextInput, Button, Modal, TouchableOpacity, StyleSheet, Ale
 import { FIREBASE_AUTH, FIRESTORE_DB } from '../database/databaseConfig';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 
+
 const SettingsPage = () => {
   const [height, setHeight] = useState('');
   const [weight, setWeight] = useState('');
   const [age, setAge] = useState('');
   const [activity, setActivity] = useState('low');
-  const [gender, setGender] = useState('male');
+  const [sex, setSex] = useState('male');
   const [dailyCalories, setDailyCalories] = useState('');
   const [dailyWater, setDailyWater] = useState('');
   const [isModalVisible, setModalVisible] = useState(false);
@@ -39,20 +40,21 @@ const SettingsPage = () => {
   }, []);
 
   const calculateCalorieGoal = async () => {
+
     const weightNum = parseFloat(weight);
     const heightNum = parseFloat(height);
     const ageNum = parseInt(age);
 
     if (isNaN(weightNum) || isNaN(heightNum) || isNaN(ageNum)) {
-      alert("Please enter valid numbers for height, weight, and age.");
+      alert('Please enter valid numbers for height, weight, and age.');
       return;
     }
 
     let bmr;
-    if (gender === 'male') {
-      bmr = 88.362 + (13.397 * weightNum) + (4.799 * heightNum) - (5.677 * ageNum);
+    if (sex === 'male') {
+      bmr = 88.362 + 13.397 * weightNum + 4.799 * heightNum - 5.677 * ageNum;
     } else {
-      bmr = 447.593 + (9.247 * weightNum) + (3.098 * heightNum) - (4.330 * ageNum);
+      bmr = 447.593 + 9.247 * weightNum + 3.098 * heightNum - 4.33 * ageNum;
     }
 
     let calorieGoal;
@@ -148,33 +150,40 @@ const SettingsPage = () => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            {activityOptions.map((option) => (
+            {['low', 'moderate', 'high'].map((level) => (
               <TouchableOpacity
-                key={option.value}
-                style={styles.modalItem}
+                key={level}
                 onPress={() => {
-                  setActivity(option.value);
+                  setActivity(level);
                   setModalVisible(false);
                 }}
               >
-                <Text style={styles.modalItemText}>{option.label}</Text>
+                <Text>{level}</Text>
               </TouchableOpacity>
             ))}
-            <Button title="Close" onPress={() => setModalVisible(false)} />
           </View>
         </View>
       </Modal>
 
+      <Text style={styles.label}>Sex:</Text>
       <View style={styles.genderContainer}>
-        <Text style={styles.label}>Gender:</Text>
-        <View style={styles.radioContainer}>
-          <Text onPress={() => setGender('male')} style={gender === 'male' ? styles.selected : styles.unselected}>Male</Text>
-          <Text onPress={() => setGender('female')} style={gender === 'female' ? styles.selected : styles.unselected}>Female</Text>
-        </View>
+        <Text
+          onPress={() => setSex('male')}
+          style={sex === 'male' ? styles.selected : styles.unselected}
+        >
+          Male
+        </Text>
+        <Text
+          onPress={() => setSex('female')}
+          style={sex === 'female' ? styles.selected : styles.unselected}
+        >
+          Female
+        </Text>
       </View>
 
       <Button title="Save Changes" onPress={saveChanges} />
       <Button title="Calculate" onPress={calculateCalorieGoal} />
+      <Button title="Save changes" onPress={saveToFirebase} />
     </View>
   );
 };
@@ -231,17 +240,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 15,
   },
-  radioContainer: {
-    flexDirection: 'row',
-    marginLeft: 10,
-  },
   selected: {
     fontWeight: 'bold',
-    marginRight: 10,
     color: 'blue',
   },
   unselected: {
-    marginRight: 10,
     color: 'grey',
   },
 });

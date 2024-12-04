@@ -183,6 +183,16 @@ const SearchScreen = () => {
     }
   };
 
+  const clearAllMeals = async () => {
+    try {
+      await AsyncStorage.removeItem('meals');
+      ToastAndroid.show('All meals cleared!', ToastAndroid.SHORT);
+    } catch (error) {
+      console.error('Error clearing all meals:', error);
+      ToastAndroid.show('Failed to clear all meals.', ToastAndroid.SHORT);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -263,6 +273,9 @@ const SearchScreen = () => {
 
       <TouchableOpacity style={styles.addButton} onPress={addMeal}>
         <Text style={styles.addButtonText}>Add meal</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.clearButton} onPress={clearAllMeals}>
+        <Text style={styles.clearButtonText}>Clear All Meals</Text>
       </TouchableOpacity>
     </View>
   );
@@ -345,6 +358,17 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   addButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  clearButton: {
+    padding: 10,
+    backgroundColor: '#f44336',
+    borderRadius: 5,
+    marginTop: 20,
+  },
+  clearButtonText: {
     color: '#fff',
     fontSize: 16,
     textAlign: 'center',
