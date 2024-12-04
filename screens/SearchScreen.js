@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ToastAndroid, ActivityIndicator, Keyboard } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { Picker } from '@react-native-picker/picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAccessToken } from '../components/FatSecretAPI';
+import { collection, addDoc } from 'firebase/firestore';
+import { FIRESTORE_DB } from '../database/databaseConfig';
+import { getAuth } from "firebase/auth";
 
 const SearchScreen = () => {
   const [selectedMeal, setSelectedMeal] = useState('');
@@ -19,61 +21,89 @@ const SearchScreen = () => {
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
   const searchFood = async (text) => {
+    console.log('Search query:', text);
     setQuery(text);
-  
+
     if (!text) {
       setResults([]);
+      console.log('Search query is empty.');
       return;
     }
-  
+
     setLoading(true);
     setError('');
-  
+
     try {
       await delay(2000);
       let token = accessToken;
+
       if (!token) {
-        token = await getAccessToken(); 
+        console.log('Fetching access token...');
+        token = await getAccessToken();
         setAccessToken(token);
       }
-  
-      const response = await fetch(`https://platform.fatsecret.com/rest/server.api?method=foods.search&search_expression=${encodeURIComponent(text)}&format=json`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-  
+
+      console.log('Access token retrieved:', token);
+
+      const response = await fetch(
+        `https://platform.fatsecret.com/rest/server.api?method=foods.search&search_expression=${encodeURIComponent(
+          text
+        )}&format=json`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
       const data = await response.json();
-  
+      console.log('Search API response:', data);
+
       if (data && data.foods && data.foods.food) {
-        const foodItems = Array.isArray(data.foods.food) ? data.foods.food : [data.foods.food]; 
+        const foodItems = Array.isArray(data.foods.food) ? data.foods.food : [data.foods.food];
         const detailedDataPromises = foodItems.map(async (food) => {
-          const detailsResponse = await fetch(`https://platform.fatsecret.com/rest/server.api?method=food.get&food_id=${food.food_id}&format=json`, { 
-            headers: { Authorization: `Bearer ${token}` } 
-          });
+          const detailsResponse = await fetch(
+            `https://platform.fatsecret.com/rest/server.api?method=food.get&food_id=${food.food_id}&format=json`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+
+          if (!detailsResponse.ok) {
+            throw new Error(`Details API error: ${detailsResponse.status}`);
+          }
+
           const detailsData = await detailsResponse.json();
-          const serving = Array.isArray(detailsData?.food?.servings?.serving) ? detailsData.food.servings.serving[0] : detailsData?.food?.servings?.serving || {};
-          const brandName = detailsData?.food?.brand_name || 'Generic';
-  
+          console.log(`Details for food_id ${food.food_id}:`, detailsData);
+
+          const serving = Array.isArray(detailsData?.food?.servings?.serving)
+            ? detailsData.food.servings.serving[0]
+            : detailsData?.food?.servings?.serving || {};
+
           return {
             id: food.food_id,
             name: food.food_name,
-            food_brand: brandName,
-            calories: serving.calories || 'N/A',
-            protein: serving.protein || 'N/A',
-            carbohydrate: serving.carbohydrate || 'N/A',
-            fat: serving.fat || 'N/A',
-            serving_size: serving.serving_size || 100, 
+            food_brand: detailsData?.food?.brand_name || 'Generic',
+            calories: serving.calories || 0,
+            protein: serving.protein || 0,
+            carbohydrate: serving.carbohydrate || 0,
+            fat: serving.fat || 0,
+            serving_size: serving.serving_size || 100,
             serving_description: serving.serving_description || 'N/A',
           };
         });
-  
+
         const detailedData = await Promise.all(detailedDataPromises);
         setResults(detailedData);
       } else {
         setResults([]);
+        console.log('No results found for the query.');
       }
     } catch (error) {
-      console.error('Error fetching data:', error);
-      setError('Failed to fetch data');
+      console.error('Error during food search:', error);
+      setError('Failed to fetch food data. Please try again.');
       ToastAndroid.show('Failed to fetch data', ToastAndroid.SHORT);
     } finally {
       setLoading(false);
@@ -81,6 +111,7 @@ const SearchScreen = () => {
   };
 
   const selectItem = (item) => {
+    console.log('Selected item:', item);
     setSelectedItem(item);
     setQuery(item.name);
     setResults([]);
@@ -89,37 +120,39 @@ const SearchScreen = () => {
   };
 
   const calculateMacros = (amount) => {
-    if (!selectedItem || !amount) return;
+    if (!selectedItem || !amount) {
+      console.log('Invalid input for macro calculation.');
+      return;
+    }
 
     const servingSize = selectedItem.serving_size || 100;
-    const caloriesPerServing = selectedItem.calories;
-    const proteinPerServing = selectedItem.protein;
-    const carbsPerServing = selectedItem.carbohydrate;
-    const fatPerServing = selectedItem.fat;
     const multiplier = amount / servingSize;
 
-    const totalCalories = (caloriesPerServing * multiplier).toFixed(2);
-    const totalProtein = (proteinPerServing * multiplier).toFixed(2);
-    const totalCarbs = (carbsPerServing * multiplier).toFixed(2);
-    const totalFat = (fatPerServing * multiplier).toFixed(2);
+    const totalCalories = (selectedItem.calories * multiplier).toFixed(2);
+    const totalProtein = (selectedItem.protein * multiplier).toFixed(2);
+    const totalCarbs = (selectedItem.carbohydrate * multiplier).toFixed(2);
+    const totalFat = (selectedItem.fat * multiplier).toFixed(2);
 
-    setCalculatedMacros({
+    const macros = {
       calories: totalCalories,
       protein: totalProtein,
       carbohydrates: totalCarbs,
       fat: totalFat,
-    });
+    };
+
+    console.log('Calculated macros:', macros);
+    setCalculatedMacros(macros);
   };
 
   const addMeal = async () => {
     if (!selectedMeal) {
       ToastAndroid.show('Please select a meal type!', ToastAndroid.SHORT);
+      console.log('Meal type not selected.');
       return;
     }
   
     if (selectedItem && calculatedMacros) {
       const mealDate = new Date().toLocaleDateString();
-  
       const newMeal = {
         name: selectedItem.name,
         calories: calculatedMacros.calories,
@@ -127,31 +160,24 @@ const SearchScreen = () => {
         carbohydrates: calculatedMacros.carbohydrates,
         fat: calculatedMacros.fat,
         mealType: selectedMeal,
-        date: mealDate, 
+        date: mealDate,
+        userId: getAuth().currentUser.uid,
       };
   
-      let storedMeals = await AsyncStorage.getItem('meals');
-      storedMeals = storedMeals ? JSON.parse(storedMeals) : [];
-      const mealIndex = storedMeals.findIndex(
-        (meal) => meal.date === mealDate && meal.mealType === selectedMeal
-      );
+      try {
+        const mealsCollectionRef = collection(FIRESTORE_DB, 'meals');
+        await addDoc(mealsCollectionRef, newMeal);
+        ToastAndroid.show(`${selectedItem.name} added to your ${selectedMeal}!`, ToastAndroid.SHORT);
+        console.log('Meal added successfully:', newMeal);
   
-      if (mealIndex !== -1) {
-        storedMeals[mealIndex].meals.push(newMeal);
-      } else {
-        storedMeals.push({
-          date: mealDate,
-          meals: [newMeal],
-        });
+        setQuery('');
+        setSelectedItem(null);
+        setAmount('');
+        setCalculatedMacros(null);
+      } catch (error) {
+        console.error('Error adding meal:', error);
+        ToastAndroid.show('Failed to add meal. Please try again.', ToastAndroid.SHORT);
       }
-  
-      await AsyncStorage.setItem('meals', JSON.stringify(storedMeals));
-  
-      ToastAndroid.show(`${selectedItem.name} added to your ${selectedMeal}!`, ToastAndroid.SHORT);
-      setQuery('');
-      setSelectedItem(null);
-      setAmount('');
-      setCalculatedMacros(null);
     } else {
       ToastAndroid.show('Please select a food item and enter the amount!', ToastAndroid.SHORT);
     }
