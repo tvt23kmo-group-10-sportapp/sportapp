@@ -10,11 +10,10 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { useNavigation } from '@react-navigation/native'; // navigointi 
 
 const HomeScreen = () => {
-  const [calories, setCalories] = useState('');
-  const [totalCalories, setTotalCalories] = useState('');
-  const [totalProtein, setTotalProtein] = useState('')
-  const [totalFat, setTotalFat] = useState('')
-  const [totalCarbs, setTotalCarbs] = useState('')
+  const [totalCalories, setTotalCalories] = useState({});
+  const [totalProtein, setTotalProtein] = useState(0)
+  const [totalFat, setTotalFat] = useState(0)
+  const [totalCarbs, setTotalCarbs] = useState(0)
   const [water, setWater] = useState('');
   const [totalWater, setTotalWater] = useState(0);
   const [show, setShow] = useState(false);
@@ -23,7 +22,13 @@ const HomeScreen = () => {
   const [loading, setLoading] = useState(true);
   const [meals, setMeals] = useState([]); 
   const [series, setSeries] = useState([])
-  const [sliceColor, setSliceColor] = useState([])
+  const [sliceColor, setSliceColor] = useState(['#FF6384', '#36A2EB', '#FFCE56'])
+  const today = new Date().toISOString().split('T')[0];
+
+  const standardizeDate = (dateString) => {
+    const [day, month, year] = dateString.split('.');
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  };
   
   const widthAndHeight = 200;
   const barData = [
@@ -49,7 +54,7 @@ const HomeScreen = () => {
             });
           });
           setMeals(groupedMeals);
-          calculateRemainingCalories(groupedMeals)
+          await calculateRemainingCalories(groupedMeals)
         }
       } catch (error) {
         console.error("Error loading meals from storage", error);
@@ -62,13 +67,13 @@ const HomeScreen = () => {
     const mealsByDay = {};
 
     meals.forEach((meal) => {
-      const date = meal.date;
-      if (!mealsByDay[date]) {
-        mealsByDay[date] = [];
+      const standardizedDate = standardizeDate(meal.date);
+      if (!mealsByDay[standardizedDate]) {
+        mealsByDay[standardizedDate] = [];
       }
-      mealsByDay[date].push(...meal.meals);
+      mealsByDay[standardizedDate].push(...meal.meals);
     });
-
+  
     return Object.keys(mealsByDay).map((date) => ({
       date,
       meals: mealsByDay[date],
@@ -117,13 +122,9 @@ const HomeScreen = () => {
     setShow(false);
     setWater('');
   }
-  useEffect(() => { 
+   
   const calculateRemainingCalories = async (loadedMeals) => {
     console.log("Loaded Meals: ", loadedMeals);
-    if (!Array.isArray(loadedMeals)) {
-      console.error('Error: loadedMeals is not an array', loadedMeals);
-      return;
-    }
   
     const user = FIREBASE_AUTH.currentUser;
     if (!user) {
@@ -141,11 +142,12 @@ const HomeScreen = () => {
   
     const userSettings = userSnap.data();
     const dailyCalories = parseFloat(userSettings.dailyCalories) || 0;
+    const todayMeals = loadedMeals.filter(meal => meal.date === today);
     let totalProtein = 0;
     let totalCarbs = 0;
     let totalFat = 0;
   
-    loadedMeals.forEach((meal) => {
+    todayMeals.forEach((meal) => {
       meal.meals.forEach((item) => {
         totalProtein += parseFloat(item.protein) || 0;
         totalCarbs += parseFloat(item.carbohydrates) || 0;
@@ -153,18 +155,7 @@ const HomeScreen = () => {
       });
     });
 
-    const totalMacros = totalProtein + totalCarbs + totalFat;
-
-    if (totalMacros > 0) {
-    const proteinPercentage = totalMacros > 0 ? ((totalProtein / totalMacros) * 100).toFixed(1) : 0;
-    const carbsPercentage = totalMacros > 0 ? ((totalCarbs / totalMacros) * 100).toFixed(1) : 0;
-    const fatPercentage = totalMacros > 0 ? ((totalFat / totalMacros) * 100).toFixed(1) : 0;
-    setSeries([parseFloat(proteinPercentage), parseFloat(carbsPercentage), parseFloat(fatPercentage)]);
-    setSliceColor(['#ff0000', '#00ff00', '#0000ff']);
-    } else {
-      setSeries([1, 1, 1]);
-    }
-    const totalMealCalories = loadedMeals.reduce((total, meal) => {
+    const totalMealCalories = todayMeals.reduce((total, meal) => {
       return (
         total +
         meal.meals.reduce((mealTotal, item) => {
@@ -173,18 +164,29 @@ const HomeScreen = () => {
         }, 0)
       );
     }, 0);
+
+    const totalMacros = totalProtein + totalCarbs + totalFat;
+
+    if (totalMacros > 0) {
+    const proteinPercentage = totalMacros > 0 ? ((totalProtein / totalMacros) * 100).toFixed(1) : 0;
+    const carbsPercentage = totalMacros > 0 ? ((totalCarbs / totalMacros) * 100).toFixed(1) : 0;
+    const fatPercentage = totalMacros > 0 ? ((totalFat / totalMacros) * 100).toFixed(1) : 0;
+    setSeries([parseFloat(proteinPercentage), parseFloat(carbsPercentage), parseFloat(fatPercentage)]);
+    } else {
+      setSeries([1, 1, 1]);
+    }
   
     const remainingCalories = Math.max(dailyCalories - totalMealCalories, 0);
-    setTotalCalories(remainingCalories);
+    console.log('Remaining Calories by Date:', remainingCalories);
+    setTotalCalories({[today]: remainingCalories});
     setTotalProtein(totalProtein);
     setTotalCarbs(totalCarbs);
     setTotalFat(totalFat);
     await updateCaloriesInFirebase(remainingCalories);
-    console.log("Total Meal Calories: ", totalMealCalories); // Debug
-    console.log("Remaining Calories: ", remainingCalories); // Debug
   };
     calculateRemainingCalories(meals);
-  }, [meals, calories]);
+
+  
 
   const updateCaloriesInFirebase = async (remainingCalories) => {
     const user = FIREBASE_AUTH.currentUser;
@@ -242,6 +244,10 @@ const HomeScreen = () => {
       fetchData();
     }, [])
   );
+  
+  useEffect(() => {
+    calculateRemainingCalories(meals);
+  }, [meals]);
 
   if (loading) {
     return (
@@ -268,10 +274,13 @@ const HomeScreen = () => {
             coverFill={'#FFF'}
           />
           <Text style={styles.caloriesText}>
-          Protein: {parseFloat(totalProtein.toFixed(2))} g ({Math.round(series[0])}%) {'\n'}
-          Carbs: {parseFloat(totalCarbs.toFixed(2))} g ({Math.round(series[1])}%) {'\n'}
-          Fat: {parseFloat(totalFat.toFixed(2))} g ({Math.round(series[2])}%) {'\n'}
-            {totalCalories} calories {'\n'} remaining
+          Protein: {totalProtein ? parseFloat(totalProtein).toFixed(2) : '0.00'} g 
+          ({series[0] ? Math.round(series[0]) : 0}%) {'\n'}
+          Carbs: {totalCarbs ? parseFloat(totalCarbs).toFixed(2) : '0.00'} g 
+          ({series[1] ? Math.round(series[1]) : 0}%) {'\n'}
+          Fat: {totalFat ? parseFloat(totalFat).toFixed(2) : '0.00'} g 
+          ({series[2] ? Math.round(series[2]) : 0}%) {'\n'}
+          {totalCalories[today]} calories {'\n'} remaining
           </Text>
         </View>
         <View style={styles.chart}>
@@ -307,7 +316,6 @@ const HomeScreen = () => {
       </View>
   
       <View style={styles.buttonsContainer}>
-        {/* Molemmat painikkeet käyttävät samaa tyyliä */}
         <Pressable style={styles.button} onPress={handleNavigateToSearch}>
           <Text style={styles.buttonText}>Add meal</Text>
         </Pressable>
@@ -323,7 +331,7 @@ const HomeScreen = () => {
             <Text style={styles.noLogsText}>You have no saved meals yet</Text>
           ) : (
             <FlatList
-              data={meals}
+              data={meals.filter((meal) => meal.date === today)}
               keyExtractor={(item) => item.date}
               renderItem={({ item }) => (
                 <View style={styles.dayContainer}>
