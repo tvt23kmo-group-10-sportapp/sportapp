@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Button, Modal, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { ImageBackground, View, Text, TextInput, Button, Modal, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { FIREBASE_AUTH, FIRESTORE_DB } from '../database/databaseConfig';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-
 
 const SettingsPage = () => {
   const [height, setHeight] = useState('');
@@ -27,9 +26,9 @@ const SettingsPage = () => {
           setWeight(userData.weight || '');
           setAge(userData.age || '');
           setActivity(userData.activityLevel || 'low');
-          setGender(userData.sex || 'male');
+          setSex(userData.sex || 'male');
           setDailyCalories(userData.dailyCalories || '404');
-          setDailyWater(userData.dailyWater || '')
+          setDailyWater(userData.dailyWater || '');
         } else {
           Alert.alert('Error', 'No user data found!');
         }
@@ -40,7 +39,6 @@ const SettingsPage = () => {
   }, []);
 
   const calculateCalorieGoal = async () => {
-
     const weightNum = parseFloat(weight);
     const heightNum = parseFloat(height);
     const ageNum = parseInt(age);
@@ -87,7 +85,7 @@ const SettingsPage = () => {
     const user = FIREBASE_AUTH.currentUser;
     if (user) {
       const userRef = doc(FIRESTORE_DB, "users", user.uid);
-      await updateDoc(userRef, { height, weight, age, activityLevel: activity, sex: gender });
+      await updateDoc(userRef, { height, weight, age, activityLevel: activity, sex });
     } else {
       Alert.alert('Error', 'User not found.');
     }
@@ -100,6 +98,10 @@ const SettingsPage = () => {
   ];
 
   return (
+    <ImageBackground
+    source={require('../assets/background.jpg')} 
+    style={styles.background}
+  >
     <View style={styles.container}>
       <Text style={styles.label}>Daily calorie goal: {dailyCalories}</Text>
       <Text style={styles.label}>Daily water goal: {dailyWater} ml</Text>
@@ -134,11 +136,7 @@ const SettingsPage = () => {
       <Text style={styles.label}>Activity Level:</Text>
       <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.dropdownButton}>
         <Text style={styles.dropdownText}>
-          {
-            activityOptions.find(option => option.value === activity)
-              ? activityOptions.find(option => option.value === activity).label
-              : 'Select Activity Level' 
-          }
+          {activityOptions.find(option => option.value === activity)?.label || 'Select Activity Level'}
         </Text>
       </TouchableOpacity>
 
@@ -183,8 +181,8 @@ const SettingsPage = () => {
 
       <Button title="Save Changes" onPress={saveChanges} />
       <Button title="Calculate" onPress={calculateCalorieGoal} />
-      <Button title="Save changes" onPress={saveToFirebase} />
-    </View>
+      </View>
+    </ImageBackground>
   );
 };
 
@@ -192,15 +190,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#fff',
   },
   label: {
     fontSize: 18,
     marginBottom: 10,
+    color: '#black'
   },
   input: {
     height: 40,
-    borderColor: '#ccc',
+    borderColor: '#fff',
     borderWidth: 1,
     marginBottom: 15,
     paddingHorizontal: 10,
@@ -209,7 +207,7 @@ const styles = StyleSheet.create({
   dropdownButton: {
     padding: 10,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#fff',
     borderRadius: 5,
     marginBottom: 15,
   },
@@ -229,23 +227,23 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
   },
-  modalItem: {
-    paddingVertical: 10,
-  },
-  modalItemText: {
-    fontSize: 18,
-  },
   genderContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
     marginBottom: 15,
   },
+  
   selected: {
     fontWeight: 'bold',
     color: 'blue',
   },
+  
   unselected: {
     color: 'grey',
+  },
+  background: {
+    flex: 1,  
+    resizeMode: 'cover',  
+    justifyContent: 'center', 
   },
 });
 

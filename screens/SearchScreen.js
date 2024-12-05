@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ToastAndroid, ActivityIndicator, Keyboard } from 'react-native';
+import { ImageBackground, View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ToastAndroid, ActivityIndicator, Keyboard } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { Picker } from '@react-native-picker/picker';
 import { getAccessToken } from '../components/FatSecretAPI';
@@ -161,6 +161,7 @@ const SearchScreen = () => {
         fat: calculatedMacros.fat,
         mealType: selectedMeal,
         date: mealDate,
+        amount: amount,
         userId: getAuth().currentUser.uid,
       };
   
@@ -194,6 +195,11 @@ const SearchScreen = () => {
   };
 
   return (
+    <ImageBackground
+    source={require('../assets/background.jpg')} 
+    style={styles.background}
+    >
+
     <View style={styles.container}>
       <View style={styles.header}>
         <Icon name="search" size={30} color="#000" style={styles.icon} />
@@ -278,6 +284,7 @@ const SearchScreen = () => {
         <Text style={styles.clearButtonText}>Clear All Meals</Text>
       </TouchableOpacity>
     </View>
+    </ImageBackground>
   );
 };
 
@@ -372,6 +379,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     textAlign: 'center',
+  },
+  background: {
+    flex: 1,  
+    resizeMode: 'cover',  
+    justifyContent: 'center', 
   },
 });
 
