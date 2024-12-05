@@ -1,32 +1,49 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { collection, getDocs } from 'firebase/firestore';
+import { FIRESTORE_DB } from '../database/databaseConfig';
+import { FIREBASE_AUTH } from '../database/databaseConfig';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const LogsScreen = (props) => {
   const [meals, setMeals] = useState([]);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
+    const unsubscribe = onAuthStateChanged(FIREBASE_AUTH, (user) => {
+      if (user) {
+        setIsAuthenticated(true); 
+      } else {
+        setIsAuthenticated(false); 
+      }
+    });
+
+    return () => unsubscribe(); 
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
     const loadMeals = async () => {
       try {
-        const storedMeals = await AsyncStorage.getItem('meals');
-        if (storedMeals) {
-          const parsedMeals = JSON.parse(storedMeals);
-          const groupedMeals = groupMealsByDay(parsedMeals);
-          parsedMeals.forEach((meal) => {
-            console.log("Meal for date:", meal.date);
-            meal.meals.forEach((mealItem) => {
-              console.log("Meal item details:", mealItem);
-            });
-          });
-          setMeals(groupedMeals);
-        }
+        const mealsRef = collection(FIRESTORE_DB, 'meals');
+        const querySnapshot = await getDocs(mealsRef);
+        const fetchedMeals = [];
+        querySnapshot.forEach((doc) => {
+          fetchedMeals.push(doc.data());
+        });
+
+        const groupedMeals = groupMealsByDay(fetchedMeals);
+        setMeals(groupedMeals);
       } catch (error) {
-        console.error("Error loading meals from storage", error);
+        console.error('Error loading meals from Firestore', error);
       }
     };
-  
+
     loadMeals();
-  }, []);
+  }, [isAuthenticated]);
 
   const groupMealsByDay = (meals) => {
     const mealsByDay = {};
@@ -36,7 +53,7 @@ const LogsScreen = (props) => {
       if (!mealsByDay[date]) {
         mealsByDay[date] = [];
       }
-      mealsByDay[date].push(...meal.meals);
+      mealsByDay[date].push(meal);
     });
 
     return Object.keys(mealsByDay).map((date) => ({
@@ -59,8 +76,10 @@ const LogsScreen = (props) => {
 
   return (
     <View style={styles.container}>
-      {meals.length === 0 ? (
+      {isAuthenticated && meals.length === 0 ? (
         <Text style={styles.noLogsText}>You have no logs yet</Text>
+      ) : !isAuthenticated ? (
+        <Text style={styles.noLogsText}>Please log in to view your meals</Text>
       ) : (
         <FlatList
           data={meals}

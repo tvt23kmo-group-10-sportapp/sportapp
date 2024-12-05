@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Button, Modal, TouchableOpacity, StyleSheet } from 'react-native';
-import { FIRESTORE_DB, FIREBASE_AUTH } from '../database/databaseConfig';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
+import { View, Text, TextInput, Button, Modal, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { FIREBASE_AUTH, FIRESTORE_DB } from '../database/databaseConfig';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+
 
 const SettingsPage = () => {
   const [height, setHeight] = useState('');
@@ -14,47 +14,33 @@ const SettingsPage = () => {
   const [dailyWater, setDailyWater] = useState('');
   const [isModalVisible, setModalVisible] = useState(false);
 
-  const [userId, setUserId] = useState(null);
-  
-  // Fetch authenticated user's ID
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(FIREBASE_AUTH, (user) => {
-      if (user) {
-        setUserId(user.uid);
-      } else {
-        setUserId(null);
-      }
-    });
-    return unsubscribe;
-  }, []);
-
-  // Fetch user data from Firestore
-  useEffect(() => {
-    if (!userId) return;
-
     const fetchUserData = async () => {
-      try {
-        const userDoc = await getDoc(doc(FIRESTORE_DB, 'user_settings', userId));
-        if (userDoc.exists()) {
-          const data = userDoc.data();
-          setHeight(data.height || '');
-          setWeight(data.weight || '');
-          setAge(data.age || '');
-          setActivity(data.activity || 'low');
-          setSex(data.sex || 'male');
-          setDailyCalories(data.dailyCalories || '');
-          setDailyWater(data.dailyWater || '');
+      const user = FIREBASE_AUTH.currentUser;
+      if (user) {
+        const userRef = doc(FIRESTORE_DB, "users", user.uid);
+        const docSnap = await getDoc(userRef);
+
+        if (docSnap.exists()) {
+          const userData = docSnap.data();
+          setHeight(userData.height || '');
+          setWeight(userData.weight || '');
+          setAge(userData.age || '');
+          setActivity(userData.activityLevel || 'low');
+          setGender(userData.sex || 'male');
+          setDailyCalories(userData.dailyCalories || '404');
+          setDailyWater(userData.dailyWater || '')
+        } else {
+          Alert.alert('Error', 'No user data found!');
         }
-      } catch (error) {
-        console.error('Error fetching user data:', error);
       }
     };
 
     fetchUserData();
-  }, [userId]);
+  }, []);
 
-  // Calculate calorie and water goals
-  const calculateCalorieGoal = () => {
+  const calculateCalorieGoal = async () => {
+
     const weightNum = parseFloat(weight);
     const heightNum = parseFloat(height);
     const ageNum = parseInt(age);
@@ -87,33 +73,31 @@ const SettingsPage = () => {
     }
 
     setDailyCalories(calorieGoal.toFixed(0));
-    setDailyWater((weightNum * 35).toFixed(0)); // in ml
-  };
+    const waterGoal = (weightNum * 35).toFixed(0);
+    setDailyWater(waterGoal);  
 
-  // Save or update user data in database
-  const saveToFirebase = async () => {
-    if (!userId) {
-      alert('No user logged in!');
-      return;
-    }
-
-    try {
-      await setDoc(doc(FIRESTORE_DB, 'user_settings', userId), {
-        height,
-        weight,
-        age,
-        activity,
-        sex,
-        dailyCalories,
-        dailyWater,
-        timestamp: new Date(),
-      });
-      alert('Data saved successfully!');
-    } catch (error) {
-      console.error('Error saving data:', error);
-      alert('Failed to save data.');
+    const user = FIREBASE_AUTH.currentUser;
+    if (user) {
+      const userRef = doc(FIRESTORE_DB, "users", user.uid);
+      await updateDoc(userRef, { dailyCalories: calorieGoal.toFixed(0), dailyWater: waterGoal });
     }
   };
+
+  const saveChanges = async () => {
+    const user = FIREBASE_AUTH.currentUser;
+    if (user) {
+      const userRef = doc(FIRESTORE_DB, "users", user.uid);
+      await updateDoc(userRef, { height, weight, age, activityLevel: activity, sex: gender });
+    } else {
+      Alert.alert('Error', 'User not found.');
+    }
+  };
+
+  const activityOptions = [
+    { label: 'Low', value: 'low' },
+    { label: 'Moderate', value: 'moderate' },
+    { label: 'High', value: 'high' },
+  ];
 
   return (
     <View style={styles.container}>
@@ -149,7 +133,13 @@ const SettingsPage = () => {
 
       <Text style={styles.label}>Activity Level:</Text>
       <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.dropdownButton}>
-        <Text style={styles.dropdownText}>{activity}</Text>
+        <Text style={styles.dropdownText}>
+          {
+            activityOptions.find(option => option.value === activity)
+              ? activityOptions.find(option => option.value === activity).label
+              : 'Select Activity Level' 
+          }
+        </Text>
       </TouchableOpacity>
 
       <Modal
@@ -191,6 +181,7 @@ const SettingsPage = () => {
         </Text>
       </View>
 
+      <Button title="Save Changes" onPress={saveChanges} />
       <Button title="Calculate" onPress={calculateCalorieGoal} />
       <Button title="Save changes" onPress={saveToFirebase} />
     </View>

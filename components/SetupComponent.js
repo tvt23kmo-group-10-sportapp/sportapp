@@ -14,22 +14,23 @@ export default function UserSetupScreen({ navigation }) {
   const [activityLevel, setActivityLevel] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const calculateDailyGoals = () => {
+  const calculateCalorieGoal = () => {
     const weightNum = parseFloat(weight);
     const heightNum = parseFloat(height);
     const ageNum = parseInt(age);
-
+  
     if (isNaN(weightNum) || isNaN(heightNum) || isNaN(ageNum)) {
-      return { dailyCalories: '', dailyWater: '' };
+      Alert.alert("Error", "Please enter valid numbers for height, weight, and age.");
+      return;
     }
-
+  
     let bmr;
     if (sex === 'male') {
-      bmr = 88.362 + 13.397 * weightNum + 4.799 * heightNum - 5.677 * ageNum;
+      bmr = 88.362 + (13.397 * weightNum) + (4.799 * heightNum) - (5.677 * ageNum);
     } else {
-      bmr = 447.593 + 9.247 * weightNum + 3.098 * heightNum - 4.33 * ageNum;
+      bmr = 447.593 + (9.247 * weightNum) + (3.098 * heightNum) - (4.330 * ageNum);
     }
-
+  
     let calorieGoal;
     switch (activityLevel) {
       case 'low':
@@ -44,50 +45,43 @@ export default function UserSetupScreen({ navigation }) {
       default:
         calorieGoal = bmr;
     }
-
-    const dailyWater = (weightNum * 35).toFixed(0); // in ml
-    return {
-      dailyCalories: calorieGoal.toFixed(0),
-      dailyWater,
-    };
+  
+    return calorieGoal.toFixed(0);
   };
-
+  
   const handleSubmit = async () => {
     if (!username || !sex || !height || !weight || !activityLevel) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
-
-    if (isNaN(height) || isNaN(weight) || isNaN(age)) {
-      Alert.alert('Error', 'Height and Weight and Age must be numeric');
+  
+    if (isNaN(height) || isNaN(weight)) {
+      Alert.alert('Error', 'Height and Weight must be numeric');
       return;
     }
-
+  
     setLoading(true);
-
+  
     try {
       const user = FIREBASE_AUTH.currentUser;
       if (user) {
-        const { dailyCalories, dailyWater } = calculateDailyGoals();
-
-        const userRef = doc(FIRESTORE_DB, 'user_settings', user.uid);
-        await setDoc(
-          userRef,
-          {
-            username,
-            sex,
-            height,
-            weight,
-            age,
-            activity: activityLevel,
-            dailyCalories,
-            dailyWater,
-            timestamp: new Date(),
-          },
-          { merge: true }
-        );
-
-        await AsyncStorage.setItem('userName', username);
+        const userRef = doc(FIRESTORE_DB, "users", user.uid);
+        const calorieGoal = calculateCalorieGoal();
+  
+        await setDoc(userRef, {
+          username,
+          sex,
+          height,
+          weight,
+          activityLevel,
+          dailyCalories: calorieGoal 
+        }, { merge: true });
+  
+        if (username) {
+          await AsyncStorage.setItem('userName', username);
+        }
+        
+        await AsyncStorage.setItem('dailyCalories', calorieGoal);
         Alert.alert('Profile Setup', 'Your profile has been successfully updated!');
         setLoading(false);
         navigation.navigate('Home');
@@ -131,8 +125,8 @@ export default function UserSetupScreen({ navigation }) {
       <TextInput
         style={styles.input}
         placeholder="Age"
-        value={age}
-        onChangeText={setAge}
+        value={weight}
+        onChangeText={setWeight}
         keyboardType="numeric"
       />
 

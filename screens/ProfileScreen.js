@@ -6,18 +6,21 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ProfileScreen = () => {
-  const navigation = useNavigation(); 
+  const navigation = useNavigation();
 
   const handleLogout = async () => {
     try {
-      await AsyncStorage.removeItem('isRegistered');
-      await AsyncStorage.removeItem('userName');
+      await AsyncStorage.clear();
       await signOut(FIREBASE_AUTH); 
-      navigation.navigate('RegisterLogin'); 
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'RegisterLogin' }],
+      });
     } catch (error) {
       console.error("Logout error: ", error.message);
     }
   };
+
   return (
     <View style={styles.container}>
       <Text style={styles.text}>Welcome to Profile Screen</Text>
