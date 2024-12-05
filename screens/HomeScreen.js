@@ -1,30 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { StyleSheet, Text, View, Pressable, FlatList, ActivityIndicator, ImageBackground } from 'react-native';
+import { StyleSheet, Text, View, Pressable, FlatList, ActivityIndicator, ImageBackground, TouchableOpacity } from 'react-native';
 import PieChart from 'react-native-pie-chart';
 import { BarChart } from 'react-native-gifted-charts';
 import { FIREBASE_AUTH, FIRESTORE_DB } from '../database/databaseConfig';
-import { getDoc, doc, collection, query, where, getDocs } from 'firebase/firestore';
+import { getDoc, doc, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const HomeScreen = () => {
-  const [calories, setCalories] = useState(0);
   const [remainingCalories, setRemainingCalories] = useState(0);
   const [totalProtein, setTotalProtein] = useState(0);
   const [totalCarbs, setTotalCarbs] = useState(0);
   const [totalFat, setTotalFat] = useState(0);
   const [water, setWater] = useState(0);
+  const [calorieGoal, setDailyCalories] = useState(0); 
   const [waterGoal, setWaterGoal] = useState(2000);
   const [username, setUsername] = useState('User');
   const [loading, setLoading] = useState(true);
   const [meals, setMeals] = useState([]);
+  const [groupedMeals, setGroupedMeals] = useState({});
   const [series, setSeries] = useState([1, 1, 1]);
+  const [isCaloriesUpdated, setIsCaloriesUpdated] = useState(false);
   const navigation = useNavigation();
   const widthAndHeight = 200;
 
   const sliceColor = ['#e31814', '#a0e39a', '#e6b412']; // PROTEIN, CARBS, FAT
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchUserData = async () => {
       const currentUser = FIREBASE_AUTH.currentUser;
       if (!currentUser) {
         setLoading(false);
@@ -36,12 +39,28 @@ const HomeScreen = () => {
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
           const userData = userSnap.data();
-          setCalories(userData.dailyCalories || 2000);
-          setRemainingCalories(userData.dailyCalories || 2000);
-          setWaterGoal(userData.dailyWater || 2000);
+          const dailyCalories = userData.dailyCalories || 2000;  
+          const dailyWater = userData.dailyWater || 2000;
+          setDailyCalories(dailyCalories);
+          setWaterGoal(dailyWater);
           setUsername(userData.username || 'User');
         }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
+    fetchUserData();
+  }, []); 
+
+  useEffect(() => {
+    const fetchMealsData = async () => {
+      const currentUser = FIREBASE_AUTH.currentUser;
+      if (!currentUser) return;
+
+      try {
         const today = new Date();
         const formattedDate = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;
         const mealsRef = collection(FIRESTORE_DB, 'meals');
@@ -52,37 +71,75 @@ const HomeScreen = () => {
         const mealsData = [];
         mealsSnap.forEach((doc) => {
           const meal = doc.data();
-          mealsData.push(meal);
-          protein += parseFloat(meal.protein) || 0;
-          carbs += parseFloat(meal.carbohydrates) || 0;
-          fat += parseFloat(meal.fat) || 0;
-          totalCalories += parseFloat(meal.calories) || 0;
+          const mealProtein = parseFloat(meal.protein) || 0;
+          const mealCarbs = parseFloat(meal.carbohydrates) || 0;
+          const mealFat = parseFloat(meal.fat) || 0;
+          const mealCalories = parseFloat(meal.calories) || 0;
+
+          mealsData.push({
+            id: doc.id,
+            ...meal,
+            protein: mealProtein,
+            carbohydrates: mealCarbs,
+            fat: mealFat,
+            calories: mealCalories,
+          });
+
+          protein += mealProtein;
+          carbs += mealCarbs;
+          fat += mealFat;
+          totalCalories += mealCalories;
         });
 
-        setMeals(mealsData);
-        setRemainingCalories(prev => prev - totalCalories);
-        setTotalProtein(protein);
-        setTotalCarbs(carbs);
-        setTotalFat(fat);
+        setMeals(mealsData); 
+        setTotalProtein(protein); 
+        setTotalCarbs(carbs); 
+        setTotalFat(fat); 
+
+        if (!isCaloriesUpdated) {
+          setRemainingCalories(calorieGoal - totalCalories);
+          setIsCaloriesUpdated(true);
+        }
 
         const totalMacros = protein + carbs + fat;
-        setSeries(totalMacros > 0 ? [
-          ((protein / totalMacros) * 100).toFixed(1),
-          ((carbs / totalMacros) * 100).toFixed(1),
-          ((fat / totalMacros) * 100).toFixed(1),
-        ] : [1, 1, 1]);
+        setSeries(
+          totalMacros > 0
+            ? [
+                ((protein / totalMacros) * 100).toFixed(1),
+                ((carbs / totalMacros) * 100).toFixed(1),
+                ((fat / totalMacros) * 100).toFixed(1),
+              ]
+            : [1, 1, 1]
+        );
 
+        const grouped = mealsData.reduce((acc, meal) => {
+          const type = meal.mealType || 'Other';
+          if (!acc[type]) {
+            acc[type] = [];
+          }
+          acc[type].push(meal);
+          return acc;
+        }, {});
+        setGroupedMeals(grouped);
+        setRemainingCalories(calorieGoal - totalCalories);
       } catch (error) {
-        console.error('Error fetching user or meals data:', error);
-      } finally {
-        setLoading(false);
+        console.error('Error fetching meals data:', error);
       }
     };
 
-    fetchData();
-  }, []);
+    fetchMealsData();
+  }, [meals]); 
 
   const handleNavigateToSearch = () => navigation.navigate('Search');
+
+  const handleDeleteMeal = async (mealId) => {
+    try {
+      await deleteDoc(doc(FIRESTORE_DB, 'meals', mealId));
+      setMeals((prevMeals) => prevMeals.filter(meal => meal.id !== mealId));
+    } catch (error) {
+      console.error('Error deleting meal:', error);
+    }
+  };
 
   if (loading) {
     return (
@@ -94,7 +151,7 @@ const HomeScreen = () => {
 
   return (
     <ImageBackground
-      source={require('../assets/background.jpg')} 
+      source={require('../assets/background.jpg')}
       style={styles.background}
     >
       <View style={styles.container}>
@@ -132,13 +189,13 @@ const HomeScreen = () => {
                 )
               </Text>
               <Text style={styles.caloriesText}>
-                Remaining: {remainingCalories.toFixed(1)} cal
+                Remaining: {remainingCalories} cal
               </Text>
             </View>
           </View>
           <View style={styles.chart}>
             <BarChart
-              data={[{ value: water, frontColor: '#0E87CC' }]}
+              data={[{ value: water, frontColor: '#0E87CC' }] }
               maxValue={waterGoal}
             />
             <Text style={styles.waterText}>{water} ml / {waterGoal} ml</Text>
@@ -155,22 +212,32 @@ const HomeScreen = () => {
         </View>
 
         <View style={styles.meals}>
-          <Text style={styles.mealsTitle}>Your Meals Today</Text>
-          {meals.length === 0 ? (
-            <Text style={styles.noLogsText}>No meals logged yet</Text>
+          <Text style={styles.mealTitle}>Your Meals</Text>
+          {Object.keys(groupedMeals).length === 0 ? (
+            <Text style={styles.noMealsText}>No meals added today!</Text>
           ) : (
-            <FlatList
-              data={meals}
-              keyExtractor={(item) => item.id || item.name}
-              renderItem={({ item }) => (
-                <View style={styles.mealItem}>
-                  <Text style={styles.mealText}>
-                    {item.name} - {parseFloat(item.calories).toFixed(2)} cal - {parseFloat(item.amount).toFixed(2)} g
-                  </Text>
-                </View>
-              )}
-              style={styles.mealList}
-            />
+            Object.keys(groupedMeals).map((mealType) => (
+              <View key={mealType}>
+                <Text style={styles.mealType}>{mealType}</Text>
+                <FlatList
+                  data={groupedMeals[mealType]}
+                  renderItem={({ item }) => (
+                    <View style={styles.mealItem}>
+                      <Text style={styles.mealText}>
+                        {item.name} - {item.calories} cal / {item.amount} g
+                      </Text>
+                      <TouchableOpacity
+                        style={[styles.trashButton, { backgroundColor: 'transparent' }]}
+                        onPress={() => handleDeleteMeal(item.id)}
+                        >
+                        <Icon name="trash-can-outline" size={20}/> 
+                       </TouchableOpacity>
+                    </View>
+                  )}
+                  style={styles.mealList}
+                />
+              </View>
+            ))
           )}
         </View>
       </View>
@@ -184,8 +251,8 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   background: {
-    flex: 1,  
-    resizeMode: 'cover',  
+    flex: 1,
+    resizeMode: 'cover',
   },
   title: {
     fontSize: 24,
@@ -207,22 +274,53 @@ const styles = StyleSheet.create({
     position: 'absolute',
     alignItems: 'center',
     justifyContent: 'center',
-    top: '23%', 
+    top: '23%',
   },
   caloriesText: {
     textAlign: 'center',
     fontSize: 16,
     color: '#000',
   },
+  mealCategory: {
+    marginBottom: 20,
+  },
+  mealCategoryTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#333',
+  },
   mealItem: {
     padding: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#ddd',
+    position: 'relative',
   },
-  waterText: {
-    textAlign: 'center',
-    marginTop: 10,
+  trashButton: {
+    position: 'absolute',
+    right: 10,
+    top: 10,
+    backgroundColor: '#e31814',
+    borderRadius: 15,
+    padding: 5,
+  },
+  trashButtonText: {
+    color: '#fff',
+    fontSize: 20,
+  },
+  mealText: {
     fontSize: 16,
+  },
+  noLogsText: {
+    textAlign: 'center',
+    fontSize: 16,
+    color: '#888',
+  },
+  mealsTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    textAlign: 'center',
   },
   buttonsContainer: {
     flexDirection: 'row',
@@ -240,20 +338,10 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
   },
-  meals: {
-    marginTop: 20,
-  },
-  mealsTitle: {
-    fontSize: 20,
-    marginBottom: 10,
-  },
-  mealText: {
-    fontSize: 16,
-  },
-  noLogsText: {
+  waterText: {
     textAlign: 'center',
+    marginTop: 10,
     fontSize: 16,
-    color: '#888',
   },
 });
 
