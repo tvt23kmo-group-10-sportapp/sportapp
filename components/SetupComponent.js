@@ -67,14 +67,17 @@ export default function UserSetupScreen({ navigation }) {
       if (user) {
         const userRef = doc(FIRESTORE_DB, "users", user.uid);
         const calorieGoal = calculateCalorieGoal();
+        const waterGoal = (weight * 35).toFixed(0);
   
         await setDoc(userRef, {
           username,
           sex,
           height,
           weight,
+          age,
           activityLevel,
-          dailyCalories: calorieGoal 
+          dailyCalories: calorieGoal,
+          dailyWater: waterGoal
         }, { merge: true });
   
         if (username) {
@@ -125,8 +128,8 @@ export default function UserSetupScreen({ navigation }) {
       <TextInput
         style={styles.input}
         placeholder="Age"
-        value={weight}
-        onChangeText={setWeight}
+        value={age}
+        onChangeText={setAge}
         keyboardType="numeric"
       />
 

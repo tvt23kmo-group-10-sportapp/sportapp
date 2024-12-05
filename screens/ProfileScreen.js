@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Button } from 'react-native';
+import { ImageBackground, View, Text, StyleSheet, Button } from 'react-native';
 import { FIREBASE_AUTH } from '../database/databaseConfig';
 import { signOut } from 'firebase/auth'; 
 import { useNavigation } from '@react-navigation/native'; 
@@ -22,10 +22,15 @@ const ProfileScreen = () => {
   };
 
   return (
+    <ImageBackground
+      source={require('../assets/background.jpg')} 
+      style={styles.background}  
+    >
     <View style={styles.container}>
       <Text style={styles.text}>Welcome to Profile Screen</Text>
       <Button title="Logout" onPress={handleLogout} color="#FF6347" />
     </View>
+    </ImageBackground>
   );
 };
 
@@ -39,6 +44,11 @@ const styles = StyleSheet.create({
   text: {
     fontSize: 18,
     marginBottom: 20,
+  },
+  background: {
+    flex: 1,  
+    resizeMode: 'cover',  
+    justifyContent: 'center', 
   },
 });
 
