@@ -117,7 +117,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center', 
   },
   mealList: {
-    marginTop: 10,
+    marginTop: 30,
+    marginBottom: 40
   },
   dayContainer: {
     marginBottom: 20,
