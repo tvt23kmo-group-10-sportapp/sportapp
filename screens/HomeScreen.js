@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { StyleSheet, Text, View, Pressable, FlatList, ActivityIndicator, ImageBackground, TouchableOpacity } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, Pressable, SectionList, ActivityIndicator, ImageBackground, TouchableOpacity } from 'react-native';
 import PieChart from 'react-native-pie-chart';
 import { BarChart } from 'react-native-gifted-charts';
 import { FIREBASE_AUTH, FIRESTORE_DB } from '../database/databaseConfig';
@@ -24,7 +24,7 @@ const HomeScreen = () => {
   const navigation = useNavigation();
   const widthAndHeight = 200;
 
-  const sliceColor = ['#e31814', '#a0e39a', '#e6b412']; // PROTEIN, CARBS, FAT
+  const sliceColor = ['#e31814', '#a0e39a', '#e6b412'];
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -43,7 +43,8 @@ const HomeScreen = () => {
           const dailyWater = userData.dailyWater || 2000;
           setDailyCalories(dailyCalories);
           setWaterGoal(dailyWater);
-          setUsername(userData.username || 'User');
+          setUsername(userData.username);
+          console.log(userData)
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
@@ -51,7 +52,6 @@ const HomeScreen = () => {
         setLoading(false);
       }
     };
-
     fetchUserData();
   }, []); 
 
@@ -62,12 +62,12 @@ const HomeScreen = () => {
 
       try {
         const today = new Date();
-        const formattedDate = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;
+        const formattedDate = `${today.getDate()}.${today.getMonth() + 1}.${today.getFullYear()}`;
         const mealsRef = collection(FIRESTORE_DB, 'meals');
         const q = query(mealsRef, where('userId', '==', currentUser.uid), where('date', '==', formattedDate));
         const mealsSnap = await getDocs(q);
-
         let protein = 0, carbs = 0, fat = 0, totalCalories = 0;
+        
         const mealsData = [];
         mealsSnap.forEach((doc) => {
           const meal = doc.data();
@@ -90,14 +90,13 @@ const HomeScreen = () => {
           fat += mealFat;
           totalCalories += mealCalories;
         });
-
+        
         setMeals(mealsData); 
         setTotalProtein(protein); 
         setTotalCarbs(carbs); 
         setTotalFat(fat); 
-
+      
         if (!isCaloriesUpdated) {
-          setRemainingCalories(calorieGoal - totalCalories);
           setIsCaloriesUpdated(true);
         }
 
@@ -121,14 +120,14 @@ const HomeScreen = () => {
           return acc;
         }, {});
         setGroupedMeals(grouped);
-        setRemainingCalories(calorieGoal - totalCalories);
+        setRemainingCalories(calorieGoal - meals.reduce((sum, meal) => sum + meal.calories, 0));
       } catch (error) {
         console.error('Error fetching meals data:', error);
       }
     };
-
+    
     fetchMealsData();
-  }, [meals]); 
+  }, [calorieGoal, meals]);
 
   const handleNavigateToSearch = () => navigation.navigate('Search');
 
@@ -154,96 +153,103 @@ const HomeScreen = () => {
       source={require('../assets/background.jpg')}
       style={styles.background}
     >
-      <View style={styles.container}>
-        <Text style={styles.title}>Welcome, {username}!</Text>
-        <View style={styles.chartContainer}>
-          <View style={styles.chart}>
-            <PieChart
-              widthAndHeight={widthAndHeight}
-              series={series}
-              sliceColor={sliceColor}
-              doughnut={true}
-              coverRadius={0.95}
-              coverFill={'transparent'}
-            />
-            <View style={styles.chartText}>
-              <Text style={styles.caloriesText}>
-                Protein: {totalProtein.toFixed(1)} g (
-                <Text style={{ color: sliceColor[0] }}>
-                  {Math.round(series[0])}%
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.container}>
+          <Text style={styles.title}>Welcome, {username}!</Text>
+
+          <View style={styles.chartContainer}>
+            <View style={styles.chart}>
+              <PieChart
+                widthAndHeight={widthAndHeight}
+                series={series}
+                sliceColor={sliceColor}
+                doughnut={true}
+                coverRadius={0.95}
+                coverFill={'transparent'}
+              />
+              <View style={styles.chartText}>
+                <Text style={styles.caloriesText}>
+                  Protein: {totalProtein.toFixed(1)} g (
+                  <Text style={{ color: sliceColor[0] }}>
+                    {Math.round(series[0])}%
+                  </Text>
+                  )
                 </Text>
-                )
-              </Text>
-              <Text style={styles.caloriesText}>
-                Carbs: {totalCarbs.toFixed(1)} g (
-                <Text style={{ color: sliceColor[1] }}>
-                  {Math.round(series[1])}%
+                <Text style={styles.caloriesText}>
+                  Carbs: {totalCarbs.toFixed(1)} g (
+                  <Text style={{ color: sliceColor[1] }}>
+                    {Math.round(series[1])}%
+                  </Text>
+                  )
                 </Text>
-                )
-              </Text>
-              <Text style={styles.caloriesText}>
-                Fat: {totalFat.toFixed(1)} g (
-                <Text style={{ color: sliceColor[2] }}>
-                  {Math.round(series[2])}%
+                <Text style={styles.caloriesText}>
+                  Fat: {totalFat.toFixed(1)} g (
+                  <Text style={{ color: sliceColor[2] }}>
+                    {Math.round(series[2])}%
+                  </Text>
+                  )
                 </Text>
-                )
-              </Text>
-              <Text style={styles.caloriesText}>
-                Remaining: {remainingCalories} cal
-              </Text>
+                <Text style={styles.caloriesText}>
+                  Remaining: {remainingCalories} kcal
+                </Text>
+              </View>
+            </View>
+            <View style={styles.chart}>
+              <BarChart
+                data={[{ value: water, frontColor: '#0E87CC' }]}
+                maxValue={waterGoal}
+              />
+              <Text style={styles.waterText}>{water} ml / {waterGoal} ml</Text>
             </View>
           </View>
-          <View style={styles.chart}>
-            <BarChart
-              data={[{ value: water, frontColor: '#0E87CC' }] }
-              maxValue={waterGoal}
-            />
-            <Text style={styles.waterText}>{water} ml / {waterGoal} ml</Text>
+
+          <View style={styles.buttonsContainer}>
+            <Pressable style={styles.button} onPress={handleNavigateToSearch}>
+              <Text style={styles.buttonText}>Add Meal</Text>
+            </Pressable>
+            <Pressable style={styles.button} onPress={() => setWater((prev) => prev + 250)}>
+              <Text style={styles.buttonText}>Add Water</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.meals}>
+            <Text style={styles.mealTitle}>Your Meals</Text>
+            {Object.keys(groupedMeals).length === 0 ? (
+              <Text style={styles.noMealsText}>No meals added today!</Text>
+            ) : (
+              <SectionList
+                sections={groupedMeals
+                  ? Object.keys(groupedMeals).map((mealType) => ({
+                      title: mealType,
+                      data: groupedMeals[mealType],
+                    }))
+                  : []}
+                renderItem={({ item }) => (
+                  <View style={styles.mealItem}>
+                    <Text style={styles.mealText}>
+                      {item.name} - {item.calories} kcal / {item.amount} g
+                    </Text>
+                    <TouchableOpacity
+                      style={[styles.trashButton, { backgroundColor: 'transparent' }]}
+                      onPress={() => handleDeleteMeal(item.id)}
+                    >
+                      <Icon name="trash-can-outline" size={20} />
+                    </TouchableOpacity>
+                  </View>
+                )}
+                renderSectionHeader={({ section: { title } }) => (
+                  <Text style={styles.mealType}>{title}</Text>
+                )}
+                keyExtractor={(item) => item.id}
+              />
+            )}
           </View>
         </View>
-
-        <View style={styles.buttonsContainer}>
-          <Pressable style={styles.button} onPress={handleNavigateToSearch}>
-            <Text style={styles.buttonText}>Add Meal</Text>
-          </Pressable>
-          <Pressable style={styles.button} onPress={() => setWater((prev) => prev + 250)}>
-            <Text style={styles.buttonText}>Add Water</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.meals}>
-          <Text style={styles.mealTitle}>Your Meals</Text>
-          {Object.keys(groupedMeals).length === 0 ? (
-            <Text style={styles.noMealsText}>No meals added today!</Text>
-          ) : (
-            Object.keys(groupedMeals).map((mealType) => (
-              <View key={mealType}>
-                <Text style={styles.mealType}>{mealType}</Text>
-                <FlatList
-                  data={groupedMeals[mealType]}
-                  renderItem={({ item }) => (
-                    <View style={styles.mealItem}>
-                      <Text style={styles.mealText}>
-                        {item.name} - {item.calories} cal / {item.amount} g
-                      </Text>
-                      <TouchableOpacity
-                        style={[styles.trashButton, { backgroundColor: 'transparent' }]}
-                        onPress={() => handleDeleteMeal(item.id)}
-                        >
-                        <Icon name="trash-can-outline" size={20}/> 
-                       </TouchableOpacity>
-                    </View>
-                  )}
-                  style={styles.mealList}
-                />
-              </View>
-            ))
-          )}
-        </View>
-      </View>
+      </ScrollView>
     </ImageBackground>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
@@ -257,7 +263,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     textAlign: 'center',
-    marginVertical: 10,
+    marginTop: 30,
   },
   chartContainer: {
     flexDirection: 'row',
@@ -315,6 +321,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 16,
     color: '#888',
+  },
+  meals: {
+    marginBottom: 60,
   },
   mealsTitle: {
     fontSize: 22,
