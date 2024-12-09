@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ImageBackground } from 'react-native';
 import { collection, getDocs } from 'firebase/firestore';
 import { FIRESTORE_DB } from '../database/databaseConfig';
 import { FIREBASE_AUTH } from '../database/databaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
 
-const LogsScreen = (props) => {
+const LogsScreen = () => {
   const [meals, setMeals] = useState([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -75,29 +75,34 @@ const LogsScreen = (props) => {
   );
 
   return (
-    <View style={styles.container}>
-      {isAuthenticated && meals.length === 0 ? (
-        <Text style={styles.noLogsText}>You have no logs yet</Text>
-      ) : !isAuthenticated ? (
-        <Text style={styles.noLogsText}>Please log in to view your meals</Text>
-      ) : (
-        <FlatList
-          data={meals}
-          keyExtractor={(item) => item.date}
-          renderItem={({ item }) => (
-            <View style={styles.dayContainer}>
-              <Text style={styles.dateText}>{item.date}</Text>
-              <FlatList
-                data={item.meals}
-                keyExtractor={(meal, index) => index.toString()}
-                renderItem={renderMealItem}
-              />
-            </View>
-          )}
-          style={styles.mealList}
-        />
-      )}
-    </View>
+    <ImageBackground
+      source={require('../assets/background.jpg')} 
+      style={styles.background}  
+    >
+      <View style={styles.container}>
+        {isAuthenticated && meals.length === 0 ? (
+          <Text style={styles.noLogsText}>You have no logs yet</Text>
+        ) : !isAuthenticated ? (
+          <Text style={styles.noLogsText}>Please log in to view your meals</Text>
+        ) : (
+          <FlatList
+            data={meals}
+            keyExtractor={(item) => item.date}
+            renderItem={({ item }) => (
+              <View style={styles.dayContainer}>
+                <Text style={styles.dateText}>{item.date}</Text>
+                <FlatList
+                  data={item.meals}
+                  keyExtractor={(meal, index) => index.toString()}
+                  renderItem={renderMealItem}
+                />
+              </View>
+            )}
+            style={styles.mealList}
+          />
+        )}
+      </View>
+    </ImageBackground>
   );
 };
 
@@ -105,7 +110,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#f0f0f0',
+  },
+  background: {
+    flex: 1,  
+    resizeMode: 'cover',  
+    justifyContent: 'center', 
   },
   mealList: {
     marginTop: 10,

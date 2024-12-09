@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, ActivityIndicator, Alert, Pressable } from 'react-native';
+import { ImageBackground, View, Text, TextInput, Button, StyleSheet, ActivityIndicator, Alert, Pressable } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FIREBASE_AUTH, FIRESTORE_DB } from '../database/databaseConfig';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
@@ -56,6 +56,10 @@ export default function RegisterLoginScreen() {
   };
 
   return (
+    <ImageBackground
+    source={require('../assets/background.jpg')} 
+    style={styles.background}  
+    >
     <View style={styles.container}>
       <Text style={styles.title}>Register / Login</Text>
       <TextInput
@@ -86,6 +90,7 @@ export default function RegisterLoginScreen() {
       </Pressable>
       {loading && <ActivityIndicator size="large" color="#0000ff" style={styles.loader} />}
     </View>
+    </ImageBackground>
   );
 }
 
@@ -129,5 +134,10 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#000',
     fontSize: 16,
+  },
+  background: {
+    flex: 1,  
+    resizeMode: 'cover',  
+    justifyContent: 'center', 
   },
 });
