@@ -6,6 +6,7 @@ import { BarChart } from 'react-native-gifted-charts';
 import { FIREBASE_AUTH, FIRESTORE_DB } from '../database/databaseConfig';
 import { getDoc, doc, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const HomeScreen = () => {
   const [remainingCalories, setRemainingCalories] = useState(0);
@@ -125,11 +126,31 @@ const HomeScreen = () => {
         console.error('Error fetching meals data:', error);
       }
     };
-    
+    const loadWater = async () => {
+      try {
+        const savedWater = await AsyncStorage.getItem('water');
+        if (savedWater !== null) {
+          setWater(Number(savedWater));
+        }
+      } catch (error) {
+        console.error('Failed to load water data:', error);
+      }
+    };
+    loadWater();
     fetchMealsData();
   }, [calorieGoal, meals]);
 
   const handleNavigateToSearch = () => navigation.navigate('Search');
+
+  const handleWaterPress = async () => {
+    try {
+      const newWater = water + 250;
+      setWater(newWater);
+      await AsyncStorage.setItem('water', newWater.toString());
+    } catch (error) {
+      console.error('Failed to save water data:', error);
+    }
+  };
 
   const handleDeleteMeal = async (mealId) => {
     try {
@@ -195,6 +216,7 @@ const HomeScreen = () => {
               </View>
             </View>
             <View style={styles.chart}>
+              <Text style={styles.consumedWaterText}>Consumed water (ml)</Text>
               <BarChart
                 data={[{ value: water, frontColor: '#0E87CC' }]}
                 maxValue={waterGoal}
@@ -207,15 +229,15 @@ const HomeScreen = () => {
             <Pressable style={styles.button} onPress={handleNavigateToSearch}>
               <Text style={styles.buttonText}>Add Meal</Text>
             </Pressable>
-            <Pressable style={styles.button} onPress={() => setWater((prev) => prev + 250)}>
+            <Pressable style={styles.button} onPress={handleWaterPress}>
               <Text style={styles.buttonText}>Add Water</Text>
             </Pressable>
           </View>
 
           <View style={styles.meals}>
-            <Text style={styles.mealTitle}>Your Meals</Text>
+            <Text style={styles.mealsTitle}>Your Meals</Text>
             {Object.keys(groupedMeals).length === 0 ? (
-              <Text style={styles.noMealsText}>No meals added today!</Text>
+              <Text style={styles.noLogsText}>No meals added today!</Text>
             ) : (
               <SectionList
                 sections={groupedMeals
@@ -273,7 +295,6 @@ const styles = StyleSheet.create({
   },
   chart: {
     alignItems: 'center',
-    marginHorizontal: 10,
     position: 'relative',
   },
   chartText: {
@@ -320,7 +341,6 @@ const styles = StyleSheet.create({
   noLogsText: {
     textAlign: 'center',
     fontSize: 16,
-    color: '#888',
   },
   meals: {
     marginBottom: 60,
@@ -328,7 +348,7 @@ const styles = StyleSheet.create({
   mealsTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 10,
+    marginTop: 20,
     textAlign: 'center',
   },
   buttonsContainer: {
@@ -352,6 +372,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
   },
+  consumedWaterText: {
+    marginBottom: 5,
+    fontSize: 14,
+    fontWeight: 'bold'
+  }
 });
 
 export default HomeScreen;
