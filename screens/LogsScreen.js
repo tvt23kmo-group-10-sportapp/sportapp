@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, ImageBackground } from 'react-native';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { FIRESTORE_DB } from '../database/databaseConfig';
 import { FIREBASE_AUTH } from '../database/databaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -25,23 +25,28 @@ const LogsScreen = () => {
     if (!isAuthenticated) {
       return;
     }
-
+  
     const loadMeals = async () => {
       try {
+        const user = FIREBASE_AUTH.currentUser;
+        if (!user) return;
+        
         const mealsRef = collection(FIRESTORE_DB, 'meals');
-        const querySnapshot = await getDocs(mealsRef);
+        const q = query(mealsRef, where('userId', '==', user.uid));
+        const querySnapshot = await getDocs(q);
+    
         const fetchedMeals = [];
         querySnapshot.forEach((doc) => {
           fetchedMeals.push(doc.data());
         });
-
+    
         const groupedMeals = groupMealsByDay(fetchedMeals);
         setMeals(groupedMeals);
       } catch (error) {
         console.error('Error loading meals from Firestore', error);
       }
     };
-
+  
     loadMeals();
   }, [isAuthenticated]);
 
