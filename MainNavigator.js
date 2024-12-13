@@ -15,19 +15,22 @@ const Stack = createStackNavigator();
 
 const MainNavigator = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(null);
+  const [showFooter, setShowFooter] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(FIREBASE_AUTH, (user) => {
       if (user) {
         setIsAuthenticated(true);
+        setShowFooter(true);
       } else {
         setIsAuthenticated(false);
+        setShowFooter(false); 
       }
     });
     return () => unsubscribe();
   }, []);
 
-  if (isAuthenticated === null) return null;
+  if (isAuthenticated === null) return null; 
 
   return (
     <>
@@ -54,21 +57,26 @@ const MainNavigator = () => {
         />
         <Stack.Screen
           name="RegisterLogin"
-          component={RegisterLoginScreen}
           options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="Profile"
-          component={ProfileScreen}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="Settings"
-          component={SettingsScreen}
-          options={{ headerShown: false }}
-        />
+        >
+          {props => (
+            <RegisterLoginScreen {...props}
+              onShowFooter={() => setShowFooter(true)}/>
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="Profile" options={{ headerShown: false }}>
+          {props => (
+            isAuthenticated ? (
+              <ProfileScreen {...props} />
+            ) : (
+              <RegisterLoginScreen {...props}
+                onShowFooter={() => setShowFooter(false)}/>
+            )
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: false }}/>
       </Stack.Navigator>
-      <Footer />
+      {showFooter && <Footer />}
     </>
   );
 };
