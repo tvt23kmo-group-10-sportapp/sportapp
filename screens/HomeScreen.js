@@ -4,8 +4,9 @@ import { StyleSheet, Text, View, Pressable, FlatList, ActivityIndicator, ImageBa
 import PieChart from 'react-native-pie-chart';
 import { BarChart } from 'react-native-gifted-charts';
 import { FIREBASE_AUTH, FIRESTORE_DB } from '../database/databaseConfig';
-import { getDoc, doc, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
+import { setDoc, getDoc, doc, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const HomeScreen = () => {
   const [remainingCalories, setRemainingCalories] = useState(0);
@@ -33,7 +34,6 @@ const HomeScreen = () => {
         setLoading(false);
         return;
       }
-
       try {
         const userRef = doc(FIRESTORE_DB, 'users', currentUser.uid);
         const userSnap = await getDoc(userRef);
@@ -66,7 +66,6 @@ const HomeScreen = () => {
         const mealsRef = collection(FIRESTORE_DB, 'meals');
         const q = query(mealsRef, where('userId', '==', currentUser.uid), where('date', '==', formattedDate));
         const mealsSnap = await getDocs(q);
-
         let protein = 0, carbs = 0, fat = 0, totalCalories = 0;
         const mealsData = [];
         mealsSnap.forEach((doc) => {
@@ -127,10 +126,61 @@ const HomeScreen = () => {
       }
     };
 
+    const loadWater = async () => {
+      const currentUser = FIREBASE_AUTH.currentUser;
+      if (!currentUser) return;
+  
+      try {
+        const currentDate = new Date().toLocaleDateString();
+        const waterRef = doc(FIRESTORE_DB, 'users', currentUser.uid);
+        
+        const userSnap = await getDoc(waterRef);
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          const lastUpdatedDate = userData.lastUpdatedDate;
+          const savedWater = userData.waterProgress;
+
+          if (lastUpdatedDate !== currentDate) {
+            await setDoc(waterRef, {
+              waterProgress: 0,
+              lastUpdatedDate: currentDate,
+            }, { merge: true });
+            setWater(0); 
+          } else {
+            setWater(savedWater || 0);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load water data:', error);
+      }
+    };
+
+    loadWater();
     fetchMealsData();
   }, [meals]); 
 
   const handleNavigateToSearch = () => navigation.navigate('Search');
+
+  const handleWaterPress = async () => {
+    const currentUser = FIREBASE_AUTH.currentUser;
+    if (!currentUser) return;
+  
+    try {
+      const currentDate = new Date().toLocaleDateString();
+      const newWater = water + 250;
+      const waterRef = doc(FIRESTORE_DB, 'users', currentUser.uid);
+  
+      await setDoc(waterRef, {
+        waterProgress: newWater,
+        lastUpdatedDate: currentDate,
+      }, { merge: true });
+  
+      setWater(newWater);
+
+    } catch (error) {
+      console.error('Failed to save water data:', error);
+    }
+  };
 
   const handleDeleteMeal = async (mealId) => {
     try {
@@ -194,27 +244,27 @@ const HomeScreen = () => {
             </View>
           </View>
           <View style={styles.chart}>
+          <Text style={styles.consumedWaterText}>Consumed water (ml)</Text>
             <BarChart
-              data={[{ value: water, frontColor: '#0E87CC' }] }
+              data={[{ value: water, frontColor: '#0E87CC' }]}
               maxValue={waterGoal}
             />
             <Text style={styles.waterText}>{water} ml / {waterGoal} ml</Text>
           </View>
         </View>
-
         <View style={styles.buttonsContainer}>
           <Pressable style={styles.button} onPress={handleNavigateToSearch}>
             <Text style={styles.buttonText}>Add Meal</Text>
           </Pressable>
-          <Pressable style={styles.button} onPress={() => setWater((prev) => prev + 250)}>
+          <Pressable style={styles.button} onPress={handleWaterPress}>
             <Text style={styles.buttonText}>Add Water</Text>
           </Pressable>
         </View>
 
         <View style={styles.meals}>
-          <Text style={styles.mealTitle}>Your Meals</Text>
+        <Text style={styles.mealsTitle}>Your Meals</Text>
           {Object.keys(groupedMeals).length === 0 ? (
-            <Text style={styles.noMealsText}>No meals added today!</Text>
+            <Text style={styles.noLogsText}>No meals added today!</Text>
           ) : (
             Object.keys(groupedMeals).map((mealType) => (
               <View key={mealType}>
@@ -267,7 +317,6 @@ const styles = StyleSheet.create({
   },
   chart: {
     alignItems: 'center',
-    marginHorizontal: 10,
     position: 'relative',
   },
   chartText: {
@@ -314,12 +363,14 @@ const styles = StyleSheet.create({
   noLogsText: {
     textAlign: 'center',
     fontSize: 16,
-    color: '#888',
+  },
+  meals: {
+    marginBottom: 60,
   },
   mealsTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 10,
+    marginTop: 20,
     textAlign: 'center',
   },
   buttonsContainer: {
@@ -342,6 +393,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 10,
     fontSize: 16,
+  },
+  consumedWaterText: {
+    marginBottom: 5,
+    fontSize: 14,
+    fontWeight: 'bold'
   },
 });
 

@@ -1,72 +1,60 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import base64 from 'react-native-base64';
-import { clientID, clientSecret} from '@env';
+import { clientID, clientSecret } from '@env';
 
-const encodeClientCredentials = (id, secret) => {
-  return base64.encode(`${id}:${secret}`);
+const encodeClientCredentials = () => {
+  return base64.encode(`${clientID}:${clientSecret}`);
 };
 
 const storeToken = async (token, expiresIn) => {
-  const expirationTimestamp = new Date().getTime() + expiresIn * 1000;
-  await AsyncStorage.setItem('access_token', token);
-  await AsyncStorage.setItem('expires_in', expirationTimestamp.toString());
+  const expirationTimestamp = Date.now() + expiresIn * 1000;
+  await AsyncStorage.multiSet([
+    ['access_token', token],
+    ['expires_in', expirationTimestamp.toString()],
+  ]);
 };
 
 const getStoredToken = async () => {
-  const token = await AsyncStorage.getItem('access_token');
-  const expirationTimestamp = await AsyncStorage.getItem('expires_in');
-  
-  if (token && expirationTimestamp) {
-    const currentTime = new Date().getTime();
-    if (currentTime < parseInt(expirationTimestamp, 10)) {
-      return token;
-    } else {
-      await AsyncStorage.removeItem('access_token');
-      await AsyncStorage.removeItem('expires_in');
-    }
+  const [token, expiration] = await AsyncStorage.multiGet(['access_token', 'expires_in']);
+
+  if (token[1] && expiration[1] && Date.now() < parseInt(expiration[1], 10)) {
+    return token[1];
   }
-  
+
+  await AsyncStorage.multiRemove(['access_token', 'expires_in']);
   return null;
 };
 
 export const getAccessToken = async () => {
-  let token = await getStoredToken();
-
-  if (token) {
-    return token; 
-  }
+  const storedToken = await getStoredToken();
+  if (storedToken) return storedToken;
 
   const url = 'https://oauth.fatsecret.com/connect/token';
-  const credentials = encodeClientCredentials(clientID, clientSecret);
+  const credentials = encodeClientCredentials();
   const body = 'grant_type=client_credentials&scope=basic';
-  
+
   try {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Basic ${credentials}`
+        'Authorization': `Basic ${credentials}`,
       },
       body,
     });
 
-    const data = await response.json();
-
     if (!response.ok) {
-      console.error('Failed to retrieve access token:', data);
-      throw new Error(data.error || 'Failed to retrieve access token');
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to retrieve access token');
     }
 
-    if (!data.access_token) {
-      throw new Error('Access token not found in the response');
-    }
+    const { access_token, expires_in } = await response.json();
+    if (!access_token) throw new Error('Access token not found in response');
 
-    await storeToken(data.access_token, data.expires_in);
-
-    return data.access_token;
-
+    await storeToken(access_token, expires_in);
+    return access_token;
   } catch (error) {
-    console.error('Error fetching token:', error);
-    throw new Error(`Error fetching token: ${error.message}`);
+    console.error('Error fetching token:', error.message);
+    throw error;
   }
 };
