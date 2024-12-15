@@ -4,7 +4,7 @@ import { ScrollView, StyleSheet, Text, View, Pressable, SectionList, ActivityInd
 import PieChart from 'react-native-pie-chart';
 import { BarChart } from 'react-native-gifted-charts';
 import { FIREBASE_AUTH, FIRESTORE_DB } from '../database/databaseConfig';
-import { getDoc, doc, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
+import { setDoc, getDoc, doc, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -34,7 +34,6 @@ const HomeScreen = () => {
         setLoading(false);
         return;
       }
-
       try {
         const userRef = doc(FIRESTORE_DB, 'users', currentUser.uid);
         const userSnap = await getDoc(userRef);
@@ -126,16 +125,36 @@ const HomeScreen = () => {
         console.error('Error fetching meals data:', error);
       }
     };
+
     const loadWater = async () => {
+      const currentUser = FIREBASE_AUTH.currentUser;
+      if (!currentUser) return;
+  
       try {
-        const savedWater = await AsyncStorage.getItem('water');
-        if (savedWater !== null) {
-          setWater(Number(savedWater));
+        const currentDate = new Date().toLocaleDateString();
+        const waterRef = doc(FIRESTORE_DB, 'users', currentUser.uid);
+        
+        const userSnap = await getDoc(waterRef);
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          const lastUpdatedDate = userData.lastUpdatedDate;
+          const savedWater = userData.waterProgress;
+
+          if (lastUpdatedDate !== currentDate) {
+            await setDoc(waterRef, {
+              waterProgress: 0,
+              lastUpdatedDate: currentDate,
+            }, { merge: true });
+            setWater(0); 
+          } else {
+            setWater(savedWater || 0);
+          }
         }
       } catch (error) {
         console.error('Failed to load water data:', error);
       }
     };
+
     loadWater();
     fetchMealsData();
   }, [calorieGoal, meals]);
@@ -143,10 +162,20 @@ const HomeScreen = () => {
   const handleNavigateToSearch = () => navigation.navigate('Search');
 
   const handleWaterPress = async () => {
+    const currentUser = FIREBASE_AUTH.currentUser;
+    if (!currentUser) return;
+  
     try {
+      const currentDate = new Date().toLocaleDateString();
       const newWater = water + 250;
+      const waterRef = doc(FIRESTORE_DB, 'users', currentUser.uid);
+  
+      await setDoc(waterRef, {
+        waterProgress: newWater,
+        lastUpdatedDate: currentDate,
+      }, { merge: true });
+  
       setWater(newWater);
-      await AsyncStorage.setItem('water', newWater.toString());
     } catch (error) {
       console.error('Failed to save water data:', error);
     }
@@ -224,54 +253,57 @@ const HomeScreen = () => {
               <Text style={styles.waterText}>{water} ml / {waterGoal} ml</Text>
             </View>
           </View>
-
-          <View style={styles.buttonsContainer}>
-            <Pressable style={styles.button} onPress={handleNavigateToSearch}>
-              <Text style={styles.buttonText}>Add Meal</Text>
-            </Pressable>
-            <Pressable style={styles.button} onPress={handleWaterPress}>
-              <Text style={styles.buttonText}>Add Water</Text>
-            </Pressable>
+          <View style={styles.chart}>
+          <Text style={styles.consumedWaterText}>Consumed water (ml)</Text>
+            <BarChart
+              data={[{ value: water, frontColor: '#0E87CC' }]}
+              maxValue={waterGoal}
+            />
+            <Text style={styles.waterText}>{water} ml / {waterGoal} ml</Text>
           </View>
+        </View>
+        <View style={styles.buttonsContainer}>
+          <Pressable style={styles.button} onPress={handleNavigateToSearch}>
+            <Text style={styles.buttonText}>Add Meal</Text>
+          </Pressable>
+          <Pressable style={styles.button} onPress={handleWaterPress}>
+            <Text style={styles.buttonText}>Add Water</Text>
+          </Pressable>
+        </View>
 
-          <View style={styles.meals}>
-            <Text style={styles.mealsTitle}>Your Meals</Text>
-            {Object.keys(groupedMeals).length === 0 ? (
-              <Text style={styles.noLogsText}>No meals added today!</Text>
-            ) : (
-              <SectionList
-                sections={groupedMeals
-                  ? Object.keys(groupedMeals).map((mealType) => ({
-                      title: mealType,
-                      data: groupedMeals[mealType],
-                    }))
-                  : []}
-                renderItem={({ item }) => (
-                  <View style={styles.mealItem}>
-                    <Text style={styles.mealText}>
-                      {item.name} - {item.calories} kcal / {item.amount} g
-                    </Text>
-                    <TouchableOpacity
-                      style={[styles.trashButton, { backgroundColor: 'transparent' }]}
-                      onPress={() => handleDeleteMeal(item.id)}
-                    >
-                      <Icon name="trash-can-outline" size={20} />
-                    </TouchableOpacity>
-                  </View>
-                )}
-                renderSectionHeader={({ section: { title } }) => (
-                  <Text style={styles.mealType}>{title}</Text>
-                )}
-                keyExtractor={(item) => item.id}
-              />
-            )}
-          </View>
+        <View style={styles.meals}>
+        <Text style={styles.mealsTitle}>Your Meals</Text>
+          {Object.keys(groupedMeals).length === 0 ? (
+            <Text style={styles.noLogsText}>No meals added today!</Text>
+          ) : (
+            Object.keys(groupedMeals).map((mealType) => (
+              <View key={mealType}>
+                <Text style={styles.mealType}>{mealType}</Text>
+                <FlatList
+                  data={groupedMeals[mealType]}
+                  renderItem={({ item }) => (
+                    <View style={styles.mealItem}>
+                      <Text style={styles.mealText}>
+                        {item.name} - {item.calories} cal / {item.amount} g
+                      </Text>
+                      <TouchableOpacity
+                        style={[styles.trashButton, { backgroundColor: 'transparent' }]}
+                        onPress={() => handleDeleteMeal(item.id)}
+                        >
+                        <Icon name="trash-can-outline" size={20}/> 
+                       </TouchableOpacity>
+                    </View>
+                  )}
+                  style={styles.mealList}
+                />
+              </View>
+            ))
+          )}
         </View>
       </ScrollView>
     </ImageBackground>
   );
 };
-
 
 const styles = StyleSheet.create({
   container: {
@@ -376,7 +408,7 @@ const styles = StyleSheet.create({
     marginBottom: 5,
     fontSize: 14,
     fontWeight: 'bold'
-  }
+  },
 });
 
 export default HomeScreen;

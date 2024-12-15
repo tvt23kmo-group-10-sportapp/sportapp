@@ -184,16 +184,6 @@ const SearchScreen = () => {
     }
   };
 
-  const clearAllMeals = async () => {
-    try {
-      await AsyncStorage.removeItem('meals');
-      ToastAndroid.show('All meals cleared!', ToastAndroid.SHORT);
-    } catch (error) {
-      console.error('Error clearing all meals:', error);
-      ToastAndroid.show('Failed to clear all meals.', ToastAndroid.SHORT);
-    }
-  };
-
   return (
     <ImageBackground
     source={require('../assets/background.jpg')} 
@@ -213,7 +203,7 @@ const SearchScreen = () => {
           style={styles.picker}
           onValueChange={(itemValue) => setSelectedMeal(itemValue)}
         >
-          <Picker.Item label="Select meal" value="" />
+          <Picker.Item label="Select meal type" value="" />
           <Picker.Item label="Breakfast" value="Breakfast" />
           <Picker.Item label="Lunch" value="Lunch" />
           <Picker.Item label="Dinner" value="Dinner" />
@@ -225,6 +215,7 @@ const SearchScreen = () => {
         <TextInput
           style={styles.input}
           placeholder="Search..."
+          placeholderTextColor='black'
           value={query}
           onChangeText={(text) => setQuery(text)}
           onSubmitEditing={() => searchFood(query)} 
@@ -254,34 +245,36 @@ const SearchScreen = () => {
 
       {selectedItem && (
         <View style={styles.amountContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter amount (grams)"
-            keyboardType="numeric"
-            value={amount}
-            onChangeText={(text) => {
-              setAmount(text);
-              calculateMacros(text);
-            }}
-          />
+          <View style={styles.amountInputWrapper}>
+            <TextInput
+              style={styles.amountInput}
+              placeholder="Enter amount"
+              placeholderTextColor="black"
+              keyboardType="numeric"
+              value={amount}
+              onChangeText={(text) => {
+                setAmount(text);
+                calculateMacros(text);
+              }}
+            />
+            <Text style={styles.unitText}>(g)</Text>
+          </View>
         </View>
       )}
 
       {calculatedMacros && (
         <View style={styles.macroContainer}>
-          <Text>Calculated Macros:</Text>
-          <Text>Calories: {calculatedMacros.calories} kcal</Text>
-          <Text>Protein: {calculatedMacros.protein} g</Text>
-          <Text>Carbs: {calculatedMacros.carbohydrates} g</Text>
-          <Text>Fat: {calculatedMacros.fat} g</Text>
+          <Text style={styles.macroText}>Calculated Macros: </Text>
+          <Text>Calories: {calculatedMacros.calories} kcal </Text>
+          <Text>Protein: {calculatedMacros.protein} g </Text>
+          <Text>Carbs: {calculatedMacros.carbohydrates} g </Text>
+          <Text>Fat: {calculatedMacros.fat} g </Text>
         </View>
       )}
 
       <TouchableOpacity style={styles.addButton} onPress={addMeal}>
-        <Text style={styles.addButtonText}>Add meal</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.clearButton} onPress={clearAllMeals}>
-        <Text style={styles.clearButtonText}>Clear All Meals</Text>
+        <Text style={styles.addButtonText}>Add meal  <Icon name="plus" size={15} color="white"/></Text>
+       
       </TouchableOpacity>
     </View>
     </ImageBackground>
@@ -292,6 +285,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
+    marginTop: 30,
   },
   header: {
     flexDirection: 'row',
@@ -323,11 +317,12 @@ const styles = StyleSheet.create({
   },
   input: {
     height: 40,
-    borderColor: '#ccc',
+    borderColor: 'black',
     borderWidth: 1,
-    borderRadius: 5,
+    borderRadius: 50,
     paddingHorizontal: 10,
   },
+ 
   loader: {
     marginTop: 10,
   },
@@ -335,17 +330,18 @@ const styles = StyleSheet.create({
     padding: 10,
     borderBottomWidth: 1,
     borderColor: '#ddd',
+    color: '#ddd',
   },
   foodName: {
     fontWeight: 'bold',
   },
   foodBrand: {
     fontStyle: 'italic',
-    color: '#555',
+    color: 'black',
   },
   foodDetails: {
     fontSize: 12,
-    color: '#777',
+    color: '#black',
   },
   resultList: {
     marginTop: 10,
@@ -357,26 +353,22 @@ const styles = StyleSheet.create({
     marginTop: 20,
     padding: 10,
     borderRadius: 5,
-    backgroundColor: '#f8f8f8',
+    backgroundColor: '#transparent',
+  },
+  macroText: {
+    fontWeight: 'bold'
   },
   addButton: {
     padding: 10,
     backgroundColor: '#4CAF50',
-    borderRadius: 5,
+    borderRadius: 50,
     marginTop: 20,
+    width: 125,
+    position: 'absolute',
+    bottom: 125,
+    left: 140,
   },
   addButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  clearButton: {
-    padding: 10,
-    backgroundColor: '#f44336',
-    borderRadius: 5,
-    marginTop: 20,
-  },
-  clearButtonText: {
     color: '#fff',
     fontSize: 16,
     textAlign: 'center',
@@ -385,6 +377,25 @@ const styles = StyleSheet.create({
     flex: 1,  
     resizeMode: 'cover',  
     justifyContent: 'center', 
+  },
+  amountInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'black',
+    borderRadius: 50,
+    paddingHorizontal: 10,
+    height: 40,
+  },
+  amountInput: {
+    flex: 1,
+    height: '100%',
+    paddingHorizontal: 5,
+  },
+  unitText: {
+    fontSize: 16,
+    color: 'black',
+    marginLeft: 5,
   },
 });
 

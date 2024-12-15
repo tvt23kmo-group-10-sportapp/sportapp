@@ -6,7 +6,7 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'fire
 import { doc, setDoc } from 'firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
 
-export default function RegisterLoginScreen() {
+export default function RegisterLoginScreen({ onShowFooter }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,9 +25,9 @@ export default function RegisterLoginScreen() {
         createdAt: new Date(),
       });
 
-      await AsyncStorage.setItem('isRegistered', 'true');
       setEmail('');
       setPassword('');
+      onShowFooter(); 
       navigation.navigate('UserSetup');
     } catch (error) {
       Alert.alert('Registration failed', error.message);
@@ -42,6 +42,7 @@ export default function RegisterLoginScreen() {
       await signInWithEmailAndPassword(FIREBASE_AUTH, email, password);
       setEmail('');
       setPassword('');
+      onShowFooter(); 
       navigation.navigate('Home');
     } catch (error) {
       Alert.alert('Login failed', error.message);
@@ -51,45 +52,46 @@ export default function RegisterLoginScreen() {
   };
 
   const handleContinueWithoutLogin = async () => {
-    await AsyncStorage.setItem('isRegistered', 'false');
+    await AsyncStorage.setItem('showFooter', 'true');
+    onShowFooter(); 
     navigation.navigate('Home');
   };
 
   return (
     <ImageBackground
-    source={require('../assets/background.jpg')} 
-    style={styles.background}  
+      source={require('../assets/background.jpg')}
+      style={styles.background}
     >
-    <View style={styles.container}>
-      <Text style={styles.title}>Register / Login</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
-      <View style={styles.buttonContainer}>
-        <View style={styles.button}>
-          <Button title="Login" onPress={handleLogin} disabled={loading} />
+      <View style={styles.container}>
+        <Text style={styles.title}>Register / Login</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          autoCapitalize="none"
+          keyboardType="email-address"
+          value={email}
+          onChangeText={setEmail}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Password"
+          secureTextEntry
+          value={password}
+          onChangeText={setPassword}
+        />
+        <View style={styles.buttonContainer}>
+          <View style={styles.button}>
+            <Button title="Login" onPress={handleLogin} disabled={loading} />
+          </View>
+          <View style={styles.button}>
+            <Button title="Register" onPress={handleRegister} disabled={loading} />
+          </View>
         </View>
-        <View style={styles.button}>
-          <Button title="Register" onPress={handleRegister} disabled={loading} />
-        </View>
+        <Pressable style={styles.continueButton} onPress={handleContinueWithoutLogin}>
+          <Text style={styles.buttonText}>Continue Without Registering</Text>
+        </Pressable>
+        {loading && <ActivityIndicator size="large" color="#0000ff" style={styles.loader} />}
       </View>
-      <Pressable style={styles.continueButton} onPress={handleContinueWithoutLogin}>
-        <Text style={styles.buttonText}>Continue Without Registering</Text>
-      </Pressable>
-      {loading && <ActivityIndicator size="large" color="#0000ff" style={styles.loader} />}
-    </View>
     </ImageBackground>
   );
 }
@@ -136,8 +138,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   background: {
-    flex: 1,  
-    resizeMode: 'cover',  
-    justifyContent: 'center', 
+    flex: 1,
+    resizeMode: 'cover',
+    justifyContent: 'center',
   },
 });
