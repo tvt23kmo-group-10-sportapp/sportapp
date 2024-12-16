@@ -27,7 +27,7 @@ const SettingsPage = () => {
           setAge(userData.age || '');
           setActivity(userData.activityLevel || 'low');
           setSex(userData.sex || 'male');
-          setDailyCalories(userData.dailyCalories || '404');
+          setDailyCalories(userData.dailyCalories || '');
           setDailyWater(userData.dailyWater || '');
         } else {
           Alert.alert('Error', 'No user data found!');
@@ -38,13 +38,12 @@ const SettingsPage = () => {
     fetchUserData();
   }, []);
 
-  const calculateCalorieGoal = async () => {
+  const calculateGoals = () => {
     const weightNum = parseFloat(weight);
     const heightNum = parseFloat(height);
     const ageNum = parseInt(age);
 
     if (isNaN(weightNum) || isNaN(heightNum) || isNaN(ageNum)) {
-      alert('Please enter valid numbers for height, weight, and age.');
       return;
     }
 
@@ -72,20 +71,19 @@ const SettingsPage = () => {
 
     setDailyCalories(calorieGoal.toFixed(0));
     const waterGoal = (weightNum * 35).toFixed(0);
-    setDailyWater(waterGoal);  
-
-    const user = FIREBASE_AUTH.currentUser;
-    if (user) {
-      const userRef = doc(FIRESTORE_DB, "users", user.uid);
-      await updateDoc(userRef, { dailyCalories: calorieGoal.toFixed(0), dailyWater: waterGoal });
-    }
+    setDailyWater(waterGoal);
   };
+
+  useEffect(() => {
+    calculateGoals();
+  }, [height, weight, age, activity, sex]);
 
   const saveChanges = async () => {
     const user = FIREBASE_AUTH.currentUser;
     if (user) {
       const userRef = doc(FIRESTORE_DB, "users", user.uid);
-      await updateDoc(userRef, { height, weight, age, activityLevel: activity, sex });
+      await updateDoc(userRef, { height, weight, age, activityLevel: activity, sex, dailyCalories, dailyWater });
+      Alert.alert('Success', 'Changes saved successfully!');
     } else {
       Alert.alert('Error', 'User not found.');
     }
@@ -99,88 +97,82 @@ const SettingsPage = () => {
 
   return (
     <ImageBackground
-    source={require('../assets/background.jpg')} 
-    style={styles.background}
-  >
-    <View style={styles.container}>
-      <Text style={styles.label}>Daily calorie goal: {dailyCalories}</Text>
-      <Text style={styles.label}>Daily water goal: {dailyWater} ml</Text>
+      source={require('../assets/background.jpg')} 
+      style={styles.background}
+    >
+      <View style={styles.container}>
+        <Text style={styles.label}>Daily calorie goal: {dailyCalories} kcal</Text>
+        <Text style={styles.label}>Daily water goal: {dailyWater} ml</Text>
 
-      <Text style={styles.label}>Height (cm):</Text>
-      <TextInput
-        style={styles.input}
-        keyboardType="numeric"
-        value={height}
-        onChangeText={setHeight}
-        placeholder="Enter height"
-      />
+        <Text style={styles.label}>Height (cm):</Text>
+        <TextInput
+          style={styles.input}
+          keyboardType="numeric"
+          value={height}
+          onChangeText={setHeight}
+          placeholder="Enter height"
+        />
 
-      <Text style={styles.label}>Weight (kg):</Text>
-      <TextInput
-        style={styles.input}
-        keyboardType="numeric"
-        value={weight}
-        onChangeText={setWeight}
-        placeholder="Enter weight"
-      />
+        <Text style={styles.label}>Weight (kg):</Text>
+        <TextInput
+          style={styles.input}
+          keyboardType="numeric"
+          value={weight}
+          onChangeText={setWeight}
+          placeholder="Enter weight"
+        />
 
-      <Text style={styles.label}>Age:</Text>
-      <TextInput
-        style={styles.input}
-        keyboardType="numeric"
-        value={age}
-        onChangeText={setAge}
-        placeholder="Enter age"
-      />
+        <Text style={styles.label}>Age:</Text>
+        <TextInput
+          style={styles.input}
+          keyboardType="numeric"
+          value={age}
+          onChangeText={setAge}
+          placeholder="Enter age"
+        />
 
-      <Text style={styles.label}>Activity Level:</Text>
-      <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.dropdownButton}>
-        <Text style={styles.dropdownText}>
-          {activityOptions.find(option => option.value === activity)?.label || 'Select Activity Level'}
-        </Text>
-      </TouchableOpacity>
+        <Text style={styles.label}>Activity Level:</Text>
+        <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.dropdownButton}>
+          <Text style={styles.dropdownText}>
+            {activityOptions.find(option => option.value === activity)?.label || 'Select Activity Level'}
+          </Text>
+        </TouchableOpacity>
 
-      <Modal
-        transparent={true}
-        visible={isModalVisible}
-        animationType="slide"
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            {['low', 'moderate', 'high'].map((level) => (
-              <TouchableOpacity
-                key={level}
-                onPress={() => {
-                  setActivity(level);
-                  setModalVisible(false);
-                }}
-              >
-                <Text>{level}</Text>
-              </TouchableOpacity>
-            ))}
+        <Modal
+          transparent={true}
+          visible={isModalVisible}
+          animationType="slide"
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              {activityOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  onPress={() => {
+                    setActivity(option.value);
+                    setModalVisible(false);
+                  }}
+                >
+                  <Text style={styles.modalOption}>{option.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
+        </Modal>
+
+        <Text style={styles.label}>Sex:</Text>
+        <View style={styles.genderContainer}>
+          <TouchableOpacity onPress={() => setSex('male')} style={[styles.genderButton, sex === 'male' && styles.selectedGender]}>
+            <Text style={styles.genderText}>Male</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setSex('female')} style={[styles.genderButton, sex === 'female' && styles.selectedGender]}>
+            <Text style={styles.genderText}>Female</Text>
+          </TouchableOpacity>
         </View>
-      </Modal>
-
-      <Text style={styles.label}>Sex:</Text>
-      <View style={styles.genderContainer}>
-        <Text
-          onPress={() => setSex('male')}
-          style={sex === 'male' ? styles.selected : styles.unselected}
-        >
-          Male
-        </Text>
-        <Text
-          onPress={() => setSex('female')}
-          style={sex === 'female' ? styles.selected : styles.unselected}
-        >
-          Female
-        </Text>
-      </View>
-
-      <Button title="Save Changes" onPress={saveChanges} />
-      <Button title="Calculate" onPress={calculateCalorieGoal} />
+        <TouchableOpacity style={styles.saveChangesButton} onPress={saveChanges}>
+          <Text style={styles.saveChangesText}>Save Changes</Text>
+        </TouchableOpacity>
       </View>
     </ImageBackground>
   );
@@ -190,29 +182,33 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
+    marginTop: 40,
   },
   label: {
     fontSize: 18,
     marginBottom: 10,
-    color: '#black'
+    color: 'black',
   },
   input: {
     height: 40,
-    borderColor: '#fff',
+    borderColor: '#ccc',
     borderWidth: 1,
     marginBottom: 15,
     paddingHorizontal: 10,
     borderRadius: 5,
+    backgroundColor: 'white',
   },
   dropdownButton: {
     padding: 10,
     borderWidth: 1,
-    borderColor: '#fff',
+    borderColor: '#ccc',
     borderRadius: 5,
     marginBottom: 15,
+    backgroundColor: 'white',
   },
   dropdownText: {
     fontSize: 16,
+    color: 'black',
   },
   modalOverlay: {
     flex: 1,
@@ -227,23 +223,48 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
   },
+  modalOption: {
+    fontSize: 16,
+    paddingVertical: 10,
+    color: 'black',
+  },
   genderContainer: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 15,
   },
-  
-  selected: {
-    fontWeight: 'bold',
-    color: 'blue',
+  genderButton: {
+    flex: 1,
+    alignItems: 'center',
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 50,
+    marginHorizontal: 5,
   },
-  
-  unselected: {
-    color: 'grey',
+  selectedGender: {
+    backgroundColor: 'black',
+  },
+  genderText: {
+    color: 'white',
+    fontWeight: 'bold',
   },
   background: {
     flex: 1,  
     resizeMode: 'cover',  
     justifyContent: 'center', 
+  },
+  saveChangesButton: {
+    backgroundColor: 'black',
+    padding: 10,
+    borderRadius: 50,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  saveChangesText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 
