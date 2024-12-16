@@ -30,7 +30,7 @@ const ProfileScreen = () => {
         const docSnap = await getDoc(userRef);
         if (docSnap.exists()) {
           const userData = docSnap.data();
-          setName(userData.name || '');
+          setName(userData.name || (userData.email ? extractNameFromEmail(userData.email) : 'Add your name'));
           setUsername(userData.username || '');
         }
         setIsEmailVerified(user.emailVerified);
@@ -117,6 +117,15 @@ const ProfileScreen = () => {
   const handleActionRequest = (action) => {
     setActionType(action);
     setPasswordModalVisible(true);
+  };
+
+  const extractNameFromEmail = (email) => {
+    const namePart = email.split('@')[0];
+    const nameParts = namePart.split('.'); 
+    
+    return nameParts
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+      .join(' ');
   };
 
   const sendVerificationEmail = async () => {
