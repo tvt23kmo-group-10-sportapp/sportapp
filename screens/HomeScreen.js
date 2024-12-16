@@ -253,14 +253,6 @@ const HomeScreen = () => {
               <Text style={styles.waterText}>{water} ml / {waterGoal} ml</Text>
             </View>
           </View>
-          <View style={styles.chart}>
-          <Text style={styles.consumedWaterText}>Consumed water (ml)</Text>
-            <BarChart
-              data={[{ value: water, frontColor: '#0E87CC' }]}
-              maxValue={waterGoal}
-            />
-            <Text style={styles.waterText}>{water} ml / {waterGoal} ml</Text>
-          </View>
         </View>
         <View style={styles.buttonsContainer}>
           <Pressable style={styles.button} onPress={handleNavigateToSearch}>
